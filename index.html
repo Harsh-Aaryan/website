@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Name - CS Portfolio</title>
+    
+    <!-- Google Fonts - JetBrains Mono for retro terminal look -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+    
+    <!-- Main stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Optional: Add favicon -->
+    <!-- <link rel="icon" type="image/x-icon" href="/favicon.ico"> -->
+</head>
+<body>
+    <!-- Terminal window container -->
+    <div class="terminal-window">
+        <!-- Terminal header with classic window controls -->
+        <div class="terminal-header">
+            <div class="terminal-buttons">
+                <div class="terminal-btn btn-close"></div>
+                <div class="terminal-btn btn-minimize"></div>
+                <div class="terminal-btn btn-maximize"></div>
+            </div>
+            <div class="terminal-title">portfolio.sh - zsh</div>
+        </div>
+        
+        <!-- Main content area -->
+        <div class="terminal-content">
+            <!-- Header section with ASCII art and name -->
+            <header class="header">
+                <!-- ASCII art banner - can be customized -->
+                <div class="ascii-art">
+ ██████╗███████╗    ██████╗  ██████╗ ██████╗ ████████╗███████╗ ██████╗ ██╗     ██╗ ██████╗ 
+██╔════╝██╔════╝    ██╔══██╗██╔═══██╗██╔══██╗╚══██╔══╝██╔════╝██╔═══██╗██║     ██║██╔═══██╗
+██║     ███████╗    ██████╔╝██║   ██║██████╔╝   ██║   █████╗  ██║   ██║██║     ██║██║   ██║
+██║     ╚════██║    ██╔═══╝ ██║   ██║██╔══██╗   ██║   ██╔══╝  ██║   ██║██║     ██║██║   ██║
+╚██████╗███████║    ██║     ╚██████╔╝██║  ██║   ██║   ██║     ╚██████╔╝███████╗██║╚██████╔╝
+ ╚═════╝╚══════╝    ╚═╝      ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝      ╚═════╝ ╚══════╝╚═╝ ╚═════╝ 
+                </div>
+                
+                <!-- TODO: Replace with your actual name -->
+                <h1 class="name">Your Name</h1>
+                
+                <!-- TODO: Customize your title/role -->
+                <p class="title">Computer Science Student & Developer</p>
+                
+                <!-- Terminal prompt with blinking cursor -->
+                <div>
+                    <span class="prompt">user@portfolio:~$</span>
+                    <span class="cursor"></span>
+                </div>
+            </header>
+
+            <!-- Navigation menu styled as terminal commands -->
+            <nav class="nav">
+                <a href="#about" class="nav-item">./about</a>
+                <a href="#projects" class="nav-item">./projects</a>
+                <a href="#skills" class="nav-item">./skills</a>
+                <a href="#contact" class="nav-item">./contact</a>
+            </nav>
+
+            <!-- About section -->
+            <section id="about" class="section">
+                <h2 class="section-header">About Me</h2>
+                <div class="about-content">
+                    <div class="about-text">
+                        <!-- TODO: Customize your bio - update highlighted skills and personal info -->
+                        <p>Hello! I'm a passionate <span class="highlight">Computer Science student</span> with a love for solving complex problems through code. My journey in programming started with curiosity and has evolved into a deep appreciation for elegant solutions and clean code.</p>
+                        
+                        <p>Currently pursuing my degree in Computer Science, I specialize in <span class="highlight">full-stack development</span>, <span class="highlight">algorithms</span>, and <span class="highlight">system design</span>. When I'm not debugging code, you can find me exploring new technologies or contributing to open-source projects.</p>
+                        
+                        <p>I believe in writing code that not only works but is also maintainable, scalable, and meaningful.</p>
+                    </div>
+                    
+                    <!-- Terminal-style info display -->
+                    <div class="terminal-output">
+                        <div class="output-line">
+                            <span class="output-prompt">$</span>
+                            <span class="output-command">whoami</span>
+                        </div>
+                        <div class="output-line">
+                            <span class="output-result">CS Student & Developer</span>
+                        </div>
+                        <div class="output-line">
+                            <span class="output-prompt">$</span>
+                            <span class="output-command">cat interests.txt</span>
+                        </div>
+                        <!-- TODO: Update your interests -->
+                        <div class="output-line">
+                            <span class="output-result">• Web Development</span>
+                        </div>
+                        <div class="output-line">
+                            <span class="output-result">• Machine Learning</span>
+                        </div>
+                        <div class="output-line">
+                            <span class="output-result">• Open Source</span>
+                        </div>
+                        <div class="output-line">
+                            <span class="output-result">• Problem Solving</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Skills section -->
+            <section id="skills" class="section">
+                <h2 class="section-header">Skills</h2>
+                <!-- TODO: Update skills grid with your actual skills -->
+                <div class="skills-grid">
+                    <div class="skill-item">
+                        <div>JavaScript</div>
+                    </div>
+                    <div class="skill-item">
+                        <div>Python</div>
+                    </div>
+                    <div class="skill-item">
+                        <div>Java</div>
+                    </div>
+                    <div class="skill-item">
+                        <div>React</div>
+                    </div>
+                    <div class="skill-item">
+                        <div>Node.js</div>
+                    </div>
+                    <div class="skill-item">
+                        <div>SQL</div>
+                    </div>
+                    <div class="skill-item">
+                        <div>Git</div>
+                    </div>
+                    <div class="skill-item">
+                        <div>Docker</div>
+                    </div>
+                    <div class="skill-item">
+                        <div>Linux</div>
+                    </div>
+                    <div class="skill-item">
+                        <div>MongoDB</div>
+                    </div>
+                    <div class="skill-item">
+                        <div>AWS</div>
+                    </div>
+                    <div class="skill-item">
+                        <div>C++</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Projects section -->
+            <section id="projects" class="section">
+                <h2 class="section-header">Projects</h2>
+                <div class="projects-grid">
+                    <!-- Project 1 - TODO: Replace with your actual projects -->
+                    <div class="project-card">
+                        <h3 class="project-title">Task Management App</h3>
+                        <p class="project-description">
+                            A full-stack web application for managing tasks and projects with real-time collaboration features. Includes user authentication, drag-and-drop interface, and notification system.
+                        </p>
+                        <div class="project-tech">
+                            <span class="tech-tag">React</span>
+                            <span class="tech-tag">Node.js</span>
+                            <span class="tech-tag">MongoDB</span>
+                            <span class="tech-tag">Socket.io</span>
+                        </div>
+                        <div class="project-links">
+                            <!-- TODO: Replace with actual project links -->
+                            <a href="#" class="project-link">Live Demo</a>
+                            <a href="#" class="project-link">GitHub</a>
+                        </div>
+                    </div>
+
+                    <!-- Project 2 -->
+                    <div class="project-card">
+                        <h3 class="project-title">Algorithm Visualizer</h3>
+                        <p class="project-description">
+                            Interactive web app that visualizes various sorting and pathfinding algorithms. Features step-by-step execution, speed controls, and educational explanations.
+                        </p>
+                        <div class="project-tech">
+                            <span class="tech-tag">JavaScript</span>
+                            <span class="tech-tag">HTML5 Canvas</span>
+                            <span class="tech-tag">CSS3</span>
+                            <span class="tech-tag">Algorithms</span>
+                        </div>
+                        <div class="project-links">
+                            <a href="#" class="project-link">Live Demo</a>
+                            <a href="#" class="project-link">GitHub</a>
+                        </div>
+                    </div>
+
+                    <!-- Project 3 -->
+                    <div class="project-card">
+                        <h3 class="project-title">Weather CLI Tool</h3>
+                        <p class="project-description">
+                            Command-line weather application built with Python. Fetches real-time weather data from APIs and displays formatted results with ASCII art weather icons.
+                        </p>
+                        <div class="project-tech">
+                            <span class="tech-tag">Python</span>
+                            <span class="tech-tag">CLI</span>
+                            <span class="tech-tag">APIs</span>
+                            <span class="tech-tag">JSON</span>
+                        </div>
+                        <div class="project-links">
+                            <a href="#" class="project-link">GitHub</a>
+                            <a href="#" class="project-link">PyPI</a>
+                        </div>
+                    </div>
+
+                    <!-- Project 4 -->
+                    <div class="project-card">
+                        <h3 class="project-title">Chat Application</h3>
+                        <p class="project-description">
+                            Real-time chat application with rooms, file sharing, and emoji support. Built with modern web technologies and deployed on cloud infrastructure.
+                        </p>
+                        <div class="project-tech">
+                            <span class="tech-tag">React</span>
+                            <span class="tech-tag">Express</span>
+                            <span class="tech-tag">Socket.io</span>
+                            <span class="tech-tag">PostgreSQL</span>
+                        </div>
+                        <div class="project-links">
+                            <a href="#" class="project-link">Live Demo</a>
+                            <a href="#" class="project-link">GitHub</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Contact section -->
+            <section id="contact" class="section">
+                <h2 class="section-header">Contact</h2>
+                <div class="contact-grid">
+                    <div class="contact-info">
+                        <!-- TODO: Update all contact information with your actual details -->
+                        <a href="mailto:your.email@example.com" class="contact-item">
+                            <span class="contact-icon">📧</span>
+                            <div>
+                                <div>Email</div>
+                                <div style="color: var(--text-dim); font-size: 14px;">your.email@example.com</div>
+                            </div>
+                        </a>
+                        
+                        <a href="https://github.com/yourusername" class="contact-item">
+                            <span class="contact-icon">🐙</span>
+                            <div>
+                                <div>GitHub</div>
+                                <div style="color: var(--text-dim); font-size: 14px;">@yourusername</div>
+                            </div>
+                        </a>
+                        
+                        <a href="https://linkedin.com/in/yourprofile" class="contact-item">
+                            <span class="contact-icon">💼</span>
+                            <div>
+                                <div>LinkedIn</div>
+                                <div style="color: var(--text-dim); font-size: 14px;">Your Name</div>
+                            </div>
+                        </a>
+                        
+                        <a href="https://twitter.com/yourusername" class="contact-item">
+                            <span class="contact-icon">🐦</span>
+                            <div>
+                                <div>Twitter</div>
+                                <div style="color: var(--text-dim); font-size: 14px;">@yourusername</div>
+                            </div>
+                        </a>
+                    </div>
+                    
+                    <!-- Terminal-style contact info -->
+                    <div class="terminal-output">
+                        <div class="output-line">
+                            <span class="output-prompt">$</span>
+                            <span class="output-command">cat contact.txt</span>
+                        </div>
+                        <div class="output-line">
+                            <span class="output-result">Let's build something amazing together!</span>
+                        </div>
+                        <div class="output-line">
+                            <span class="output-result"></span>
+                        </div>
+                        <div class="output-line">
+                            <span class="output-result">I'm always open to:</span>
+                        </div>
+                        <!-- TODO: Customize what you're looking for -->
+                        <div class="output-line">
+                            <span class="output-result">• Collaboration opportunities</span>
+                        </div>
+                        <div class="output-line">
+                            <span class="output-result">• Open source contributions</span>
+                        </div>
+                        <div class="output-line">
+                            <span class="output-result">• Internship opportunities</span>
+                        </div>
+                        <div class="output-line">
+                            <span class="output-result">• Tech discussions</span>
+                        </div>
+                        <div class="output-line">
+                            <span class="output-prompt">$</span>
+                            <span class="cursor"></span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- JavaScript file -->
+    <script src="script.js"></script>
+</body>
+</html>
