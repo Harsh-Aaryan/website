@@ -515,16 +515,37 @@ function WindowWash() {
 
 function SafeComposer({ enableDof }) {
   const { gl } = useThree()
-  const alive = useRef(true)
-  useEffect(() => {
-    alive.current = true
-    return () => {
-      alive.current = false
+  const [alive, setAlive] = useState(true)
+  const aliveRef = useRef(true)
+
+  useLayoutEffect(() => {
+    const ctx = gl?.getContext?.()
+    if (ctx && typeof ctx.getContextAttributes === 'function') {
+      const orig = ctx.getContextAttributes.bind(ctx)
+      ctx.getContextAttributes = () => orig() || { alpha: false }
     }
-  }, [])
-  if (!alive.current || !gl?.domElement?.isConnected) return null
+    const lose = () => {
+      aliveRef.current = false
+      setAlive(false)
+    }
+    gl?.domElement?.addEventListener('webglcontextlost', lose)
+    return () => {
+      aliveRef.current = false
+      gl?.domElement?.removeEventListener('webglcontextlost', lose)
+    }
+  }, [gl])
+
+  let contextOk = false
+  try {
+    const ctx = gl?.getContext?.()
+    contextOk = Boolean(ctx && !ctx.isContextLost?.() && ctx.getContextAttributes?.())
+  } catch {
+    contextOk = false
+  }
+
+  if (!alive || !aliveRef.current || !contextOk || !gl?.domElement?.isConnected) return null
   return (
-    <EffectComposer disableNormalPass multisampling={0}>
+    <EffectComposer enabled={alive} disableNormalPass multisampling={0}>
       <Bloom intensity={0.08} luminanceThreshold={0.92} mipmapBlur />
       {enableDof && (
         <DepthOfField
@@ -624,9 +645,14 @@ export default function CRTScene({
         }}
         camera={{ position: START_CAM.pos, fov: START_CAM.fov }}
         onCreated={({ gl }) => {
+          const ctx = gl.getContext()
+          if (ctx && typeof ctx.getContextAttributes === 'function') {
+            const orig = ctx.getContextAttributes.bind(ctx)
+            ctx.getContextAttributes = () => orig() || { alpha: false }
+          }
           const onLost = (event) => {
             event.preventDefault()
-            onContextLost?.()
+            window.requestAnimationFrame(() => onContextLost?.())
           }
           gl.domElement.addEventListener('webglcontextlost', onLost, { once: true })
         }}

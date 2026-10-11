@@ -109,6 +109,10 @@ export default function App() {
   const use3dRef = useRef(use3d)
   const zoomWatch = useRef(0)
   const zoomTarget = useRef(null)
+  const zoomAnim = useRef(false)
+  const queuedDir = useRef(null)
+  const flatTimer = useRef(0)
+  const requestZoomRef = useRef(() => {})
   use3dRef.current = use3d
   stageRef.current = stage
 
@@ -164,15 +168,35 @@ export default function App() {
     zoomWatch.current = 0
   }
 
-  const snapParked = useCallback(() => {
+  const clearZoomMotion = () => {
     cancelAnimationFrame(zoomRaf.current)
+    window.clearTimeout(flatTimer.current)
+    zoomRaf.current = 0
+    flatTimer.current = 0
     clearZoomWatch()
+  }
+
+  const releaseZoom = () => {
     zoomLock.current = false
+    zoomAnim.current = false
+    clearZoomWatch()
+  }
+
+  const flushQueuedZoom = () => {
+    const next = queuedDir.current
+    queuedDir.current = null
+    releaseZoom()
+    if (next) window.queueMicrotask(() => requestZoomRef.current(next))
+  }
+
+  const snapParked = useCallback(() => {
+    clearZoomMotion()
     zoomRef.current = 0
     overlayOnRef.current = false
     setOverlayOn(false)
     setOsMounted(true)
     goStage('parked')
+    flushQueuedZoom()
   }, [goStage])
 
   const landOnOs = useCallback(() => {
@@ -188,7 +212,6 @@ export default function App() {
   }, [announce])
 
   const finishToOs = useCallback(() => {
-    zoomLock.current = false
     zoomRef.current = 1
     overlayOnRef.current = true
     setOverlayOn(true)
@@ -197,23 +220,23 @@ export default function App() {
     pendingLand.current = true
     goStage('os')
     landOnOs()
-    clearZoomWatch()
+    flushQueuedZoom()
   }, [goStage, landOnOs])
 
   const abandon3d = useCallback(() => {
     if (!use3dRef.current) {
-      cancelAnimationFrame(zoomRaf.current)
-      clearZoomWatch()
-      zoomLock.current = false
+      clearZoomMotion()
+      queuedDir.current = null
+      releaseZoom()
       return
     }
     use3dRef.current = false
     setUse3d(false)
     setReady3d(true)
     clearOverlayFrame()
-    cancelAnimationFrame(zoomRaf.current)
-    clearZoomWatch()
-    zoomLock.current = false
+    clearZoomMotion()
+    queuedDir.current = null
+    releaseZoom()
     glassRectRef.current = null
     const now = stageRef.current
     const toOs =
@@ -266,14 +289,13 @@ export default function App() {
     landOnOs()
   }, [landOnOs, stage])
 
-  const startZoom = useCallback(() => {
-    const nowStage = stageRef.current
-    if (zoomLock.current) return
-    if (nowStage !== 'boot' && nowStage !== 'parked') return
+  const beginZoomIn = useCallback(() => {
     zoomLock.current = true
-    cancelAnimationFrame(zoomRaf.current)
+    zoomAnim.current = true
+    queuedDir.current = null
+    clearZoomMotion()
+    armZoomWatch('os')
     if (reduced || !use3d) {
-      armZoomWatch('os')
       zoomRef.current = 1
       overlayOnRef.current = true
       setOsMounted(true)
@@ -290,19 +312,18 @@ export default function App() {
           el.style.opacity = '1'
         })
       })
-      window.setTimeout(() => {
-        zoomLock.current = false
-        clearZoomWatch()
+      flatTimer.current = window.setTimeout(() => {
         startButtonRef.current?.focus()
+        flushQueuedZoom()
       }, TIMING.crossfadeMs)
       return
     }
     goStage('zooming')
-    armZoomWatch('os')
     const from = zoomRef.current
     const start = performance.now()
+    const ms = from > 0.05 ? TIMING.zoomOutMs : TIMING.zoomMs
     const tick = (now) => {
-      const t = Math.min(1, (now - start) / (nowStage === 'parked' ? TIMING.zoomOutMs : TIMING.zoomMs))
+      const t = Math.min(1, (now - start) / ms)
       const eased = easeInOut(t)
       zoomRef.current = from + (1 - from) * eased
       if (zoomRef.current >= 0.9 && !overlayOnRef.current) {
@@ -320,21 +341,21 @@ export default function App() {
     zoomRaf.current = requestAnimationFrame(tick)
   }, [armZoomWatch, finishToOs, goStage, landOnOs, reduced, use3d])
 
-  const startZoomOut = useCallback(() => {
-    if (zoomLock.current) return
-    if (stageRef.current !== 'os') return
+  const beginZoomOut = useCallback(() => {
     zoomLock.current = true
-    cancelAnimationFrame(zoomRaf.current)
+    zoomAnim.current = true
+    queuedDir.current = null
+    clearZoomMotion()
+    armZoomWatch('parked')
     announce('Zoomed out to monitor. Press any key to return.')
     if (reduced || !use3d) {
-      armZoomWatch('parked')
       const el = overlayRef.current
       if (el) {
         el.classList.add('is-crossfade')
         el.style.opacity = '0'
       }
       goStage('zooming')
-      window.setTimeout(() => {
+      flatTimer.current = window.setTimeout(() => {
         if (el) {
           el.classList.remove('is-crossfade')
           el.style.opacity = '1'
@@ -342,15 +363,13 @@ export default function App() {
         zoomRef.current = 0
         overlayOnRef.current = false
         setOverlayOn(false)
-        zoomLock.current = false
         goStage('parked')
-        clearZoomWatch()
         window.setTimeout(() => parkedRef.current?.focus(), 40)
+        flushQueuedZoom()
       }, TIMING.crossfadeMs)
       return
     }
     goStage('zooming')
-    armZoomWatch('parked')
     const from = zoomRef.current || 1
     const start = performance.now()
     const tick = (now) => {
@@ -364,19 +383,50 @@ export default function App() {
       } else {
         overlayOnRef.current = false
         setOverlayOn(false)
-        zoomLock.current = false
         goStage('parked')
-        clearZoomWatch()
         window.setTimeout(() => parkedRef.current?.focus(), 40)
+        flushQueuedZoom()
       }
     }
     zoomRaf.current = requestAnimationFrame(tick)
   }, [announce, armZoomWatch, goStage, reduced, use3d])
 
+  const requestZoom = useCallback(
+    (dir) => {
+      const running = zoomAnim.current || Boolean(zoomRaf.current) || Boolean(flatTimer.current)
+      if (zoomLock.current && running) {
+        if (zoomTarget.current === dir) return
+        queuedDir.current = dir
+        zoomLock.current = false
+        zoomAnim.current = false
+        clearZoomMotion()
+        if (dir === 'os') beginZoomIn()
+        else beginZoomOut()
+        return
+      }
+      if (zoomLock.current && !running) {
+        zoomLock.current = false
+        clearZoomWatch()
+      }
+      if (dir === 'os') {
+        const now = stageRef.current
+        if (now === 'os' && !zoomAnim.current) return
+        beginZoomIn()
+        return
+      }
+      if (stageRef.current === 'parked' && !zoomAnim.current) return
+      beginZoomOut()
+    },
+    [beginZoomIn, beginZoomOut]
+  )
+  requestZoomRef.current = requestZoom
+
+  const startZoom = useCallback(() => requestZoom('os'), [requestZoom])
+  const startZoomOut = useCallback(() => requestZoom('parked'), [requestZoom])
+
   useEffect(
     () => () => {
-      cancelAnimationFrame(zoomRaf.current)
-      clearZoomWatch()
+      clearZoomMotion()
     },
     []
   )
@@ -407,9 +457,7 @@ export default function App() {
     const onVis = () => {
       if (document.visibilityState !== 'hidden') return
       if (stageRef.current !== 'zooming' && !zoomLock.current) return
-      cancelAnimationFrame(zoomRaf.current)
-      zoomLock.current = false
-      clearZoomWatch()
+      clearZoomMotion()
       if (zoomTarget.current === 'parked') snapParked()
       else {
         pendingLand.current = true
@@ -447,7 +495,7 @@ export default function App() {
       event.key === 'CapsLock' ||
       event.key === 'Escape'
     const go = (event) => {
-      if (zoomLock.current || stageRef.current !== 'parked') return
+      if (stageRef.current !== 'parked') return
       if (event.type === 'keydown' && ignore(event)) return
       startZoom()
     }
@@ -460,8 +508,9 @@ export default function App() {
   }, [stage, startZoom])
 
   const skipIntro = () => {
-    cancelAnimationFrame(zoomRaf.current)
-    zoomLock.current = false
+    queuedDir.current = null
+    clearZoomMotion()
+    releaseZoom()
     persistSkip()
     zoomRef.current = 1
     overlayOnRef.current = true
@@ -470,7 +519,6 @@ export default function App() {
     pendingLand.current = true
     goStage('os')
     landOnOs()
-    clearZoomWatch()
   }
 
   const toggleTheme = () => {
@@ -577,24 +625,7 @@ export default function App() {
       )}
 
       {use3d && (stage === 'parked' || stage === 'zooming') && !overlayVisible && (
-        <button
-          type="button"
-          className="scene-recover"
-          onClick={() => {
-            zoomLock.current = false
-            clearZoomWatch()
-            if (stageRef.current === 'zooming' && zoomTarget.current === 'parked') {
-              snapParked()
-              return
-            }
-            if (stageRef.current === 'zooming') {
-              pendingLand.current = true
-              finishToOs()
-              return
-            }
-            startZoom()
-          }}
-        >
+        <button type="button" className="scene-recover" onClick={startZoom}>
           PRESS ANY KEY
         </button>
       )}
@@ -607,7 +638,6 @@ export default function App() {
           onPointerDown={(event) => {
             event.preventDefault()
             event.stopPropagation()
-            zoomLock.current = false
             startZoom()
           }}
         >
