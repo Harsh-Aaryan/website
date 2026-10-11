@@ -75,9 +75,7 @@ export function useBootTexture({ running, reduced }) {
     const start = () => {
       if (cancelled) return
       if (!running) {
-        paintBackground()
-        paintVignette()
-        texture.needsUpdate = true
+        draw(BOOT_LINES.length)
         return
       }
       if (reduced) {
