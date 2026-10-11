@@ -102,6 +102,7 @@ export default function App() {
   const zoomLock = useRef(false)
   const welcomed = useRef(false)
   const pendingLand = useRef(false)
+  const announceTimer = useRef(0)
   const stageRef = useRef(stage)
   const startButtonRef = useRef(null)
   const parkedRef = useRef(null)
@@ -115,7 +116,8 @@ export default function App() {
 
   const announce = useCallback((message) => {
     setLive('')
-    window.setTimeout(() => setLive(message), 40)
+    window.clearTimeout(announceTimer.current)
+    announceTimer.current = window.setTimeout(() => setLive(message), 40)
   }, [])
 
   useEffect(() => {
@@ -142,8 +144,9 @@ export default function App() {
   }, [])
 
   const landOnOs = useCallback(() => {
-    welcomed.current = true
+    if (!pendingLand.current) return
     pendingLand.current = false
+    welcomed.current = true
     announce('HARSH.OS')
     const focus = () => startButtonRef.current?.focus()
     window.requestAnimationFrame(() => {
@@ -166,7 +169,9 @@ export default function App() {
 
   useEffect(() => {
     if (stage !== 'os') return
-    if (pendingLand.current || !welcomed.current) landOnOs()
+    if (!pendingLand.current && welcomed.current) return
+    pendingLand.current = true
+    landOnOs()
   }, [landOnOs, stage])
 
   const startZoom = useCallback(() => {
