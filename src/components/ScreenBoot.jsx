@@ -16,8 +16,10 @@ export function useBootTexture({ running, reduced }) {
     const tex = new THREE.CanvasTexture(canvas)
     tex.colorSpace = THREE.SRGBColorSpace
     tex.anisotropy = 8
-    tex.minFilter = THREE.LinearFilter
-    tex.magFilter = THREE.LinearFilter
+    tex.generateMipmaps = false
+    tex.minFilter = THREE.NearestFilter
+    tex.magFilter = THREE.NearestFilter
+    tex.flipY = true
     return tex
   }, [canvas])
 
@@ -42,19 +44,18 @@ export function useBootTexture({ running, reduced }) {
 
     const draw = (count) => {
       paintBackground()
-      ctx.shadowColor = 'rgba(255, 176, 0, 0.35)'
-      ctx.shadowBlur = 4
+      ctx.shadowColor = 'transparent'
+      ctx.shadowBlur = 0
       ctx.fillStyle = '#FFB000'
-      ctx.font = '34px VT323, "IBM Plex Mono", ui-monospace, monospace'
+      ctx.font = '28px "IBM Plex Mono", VT323, ui-monospace, monospace'
       ctx.textBaseline = 'top'
-      ctx.letterSpacing = '1px'
-      let y = 48
+      let y = 56
       BOOT_LINES.slice(0, count).forEach((line) => {
-        ctx.fillText(line || ' ', 48, y)
-        y += 44
+        ctx.fillText(line || ' ', 72, y)
+        y += 42
       })
       if (count >= BOOT_LINES.length) {
-        ctx.fillRect(48, y + 4, 16, 28)
+        ctx.fillRect(72, y + 6, 14, 26)
       }
       texture.needsUpdate = true
     }

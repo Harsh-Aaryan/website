@@ -52,11 +52,13 @@ function CameraRig({ zoom, screenRef, onScreenRect }) {
 
     if (!screenRef.current || !onScreenRect) return
     const mesh = screenRef.current
+    const width = mesh.geometry.parameters?.width ?? 1
+    const height = mesh.geometry.parameters?.height ?? 1
     const corners = [
-      new THREE.Vector3(-0.5, -0.5, 0),
-      new THREE.Vector3(0.5, -0.5, 0),
-      new THREE.Vector3(0.5, 0.5, 0),
-      new THREE.Vector3(-0.5, 0.5, 0),
+      new THREE.Vector3(-width / 2, -height / 2, 0),
+      new THREE.Vector3(width / 2, -height / 2, 0),
+      new THREE.Vector3(width / 2, height / 2, 0),
+      new THREE.Vector3(-width / 2, height / 2, 0),
     ].map((local) => {
       const v = local.clone()
       mesh.localToWorld(v)
@@ -122,7 +124,7 @@ function VintageCRT({ screenRef, bootMap }) {
   }, [clone])
 
   const glassGeo = useMemo(
-    () => curveGeometry(screen.size[0], screen.size[1], 0.026),
+    () => curveGeometry(screen.size[0], screen.size[1], 0.012),
     [screen.size]
   )
 

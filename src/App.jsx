@@ -23,15 +23,25 @@ function readStored(key, fallback) {
   }
 }
 
+function readZoomParam() {
+  const value = Number(new URLSearchParams(window.location.search).get('z'))
+  return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : null
+}
+
 export default function App() {
   const skipStored = readStored(STORAGE.skipIntro, '') === '1'
   const reduced = prefersReducedMotion()
   const threeD = shouldUse3D()
+  const zoomParam = readZoomParam()
 
-  const [stage, setStage] = useState(() => (skipStored || reduced ? 'os' : 'loading'))
+  const [stage, setStage] = useState(() => {
+    if (skipStored || reduced) return 'os'
+    if (zoomParam != null && zoomParam > 0) return 'zooming'
+    return 'loading'
+  })
   const [themeId, setThemeId] = useState(() => readStored(STORAGE.theme, 'amber'))
   const [muted, setMuted] = useState(() => readStored(STORAGE.muted, '1') !== '0')
-  const [zoom, setZoom] = useState(skipStored || reduced ? 1 : 0)
+  const [zoom, setZoom] = useState(skipStored || reduced ? 1 : zoomParam ?? 0)
   const [screenRect, setScreenRect] = useState(null)
   const [flash, setFlash] = useState(false)
   const [ready3d, setReady3d] = useState(!threeD)
