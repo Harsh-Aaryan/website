@@ -99,6 +99,10 @@ export default function Taskbar({
                 ref={(el) => {
                   itemRefs.current[SECTIONS.length] = el
                 }}
+                onPointerDown={(event) => {
+                  event.stopPropagation()
+                  onZoomOut()
+                }}
                 onClick={onZoomOut}
               >
                 Shut down / Zoom out
@@ -127,6 +131,10 @@ export default function Taskbar({
           <button
             type="button"
             className="tray-btn zoom-out-btn"
+            onPointerDown={(event) => {
+              event.stopPropagation()
+              onZoomOut()
+            }}
             onClick={onZoomOut}
             aria-label="Zoom out to monitor"
             title="Zoom out to monitor"

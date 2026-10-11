@@ -2,7 +2,6 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import {
   ContactShadows,
   Environment,
-  SoftShadows,
   useGLTF,
   useProgress,
   useTexture,
@@ -90,6 +89,63 @@ function curveGeometry(width, height, bend = 0.028) {
   }
   geo.computeVertexNormals()
   return geo
+}
+
+function ShaderWarmup({ zoomRef, glassCenterRef, glassSizeRef, bootMap }) {
+  const { gl, scene, camera, size } = useThree()
+  const { active, progress, loaded } = useProgress()
+  const warmed = useRef(false)
+  const born = useRef(performance.now())
+
+  useFrame(() => {
+    if (warmed.current) return
+    const waited = performance.now() - born.current
+    const assetsIn = !active && loaded > 0 && progress >= 99
+    if (!assetsIn && waited < 8000) return
+    if (!glassSizeRef?.current?.[0] && waited < 8000) return
+    warmed.current = true
+    const saved = zoomRef.current
+    const aspect = size.width / Math.max(1, size.height)
+    try {
+      if (bootMap && typeof gl.initTexture === 'function') {
+        gl.initTexture(bootMap)
+      }
+      scene.traverse((obj) => {
+        const mats = obj.material ? (Array.isArray(obj.material) ? obj.material : [obj.material]) : []
+        mats.forEach((mat) => {
+          ;['map', 'emissiveMap', 'normalMap', 'roughnessMap', 'envMap'].forEach((key) => {
+            if (mat[key] && typeof gl.initTexture === 'function') {
+              try {
+                gl.initTexture(mat[key])
+              } catch {
+                /* ignore */
+              }
+            }
+          })
+        })
+      })
+      for (const t of [0, 0.45, 1]) {
+        zoomRef.current = t
+        const start = startCamForAspect(aspect)
+        const lookEnd = glassCenterRef?.current || GLASS_LOOK
+        const end = endCamForAspect(aspect, lookEnd, glassSizeRef.current)
+        const pos = lerp3(start.pos, end.pos, t)
+        const look = lerp3(start.look, end.look, t)
+        camera.position.set(pos[0], pos[1], pos[2])
+        camera.fov = lerp(start.fov, end.fov, t)
+        camera.lookAt(look[0], look[1], look[2])
+        camera.updateProjectionMatrix()
+        gl.compile(scene, camera)
+        gl.render(scene, camera)
+      }
+    } catch {
+      /* context may already be gone */
+    }
+    zoomRef.current = saved
+    window.__crtWarmed = true
+  })
+
+  return null
 }
 
 function CameraRig({ zoomRef, glassCenterRef, glassSizeRef }) {
@@ -578,7 +634,6 @@ function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady, on
     <>
       <color attach="background" args={['#0b0e13']} />
       <fog attach="fog" args={['#0b0e13', 6.2, 14]} />
-      <SoftShadows size={14} samples={8} focus={0.55} />
       <hemisphereLight args={['#5a6c7a', '#1c120c', 0.05]} />
       <WindowWash />
       <spotLight
@@ -613,6 +668,12 @@ function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady, on
       <ContactShadows position={[0, 0.001, 0.08]} opacity={0.55} scale={3.6} blur={2.2} far={1.2} color="#000" />
       <Dust />
       <CameraRig zoomRef={zoomRef} glassCenterRef={glassCenterRef} glassSizeRef={glassSizeRef} />
+      <ShaderWarmup
+        zoomRef={zoomRef}
+        glassCenterRef={glassCenterRef}
+        glassSizeRef={glassSizeRef}
+        bootMap={bootMap}
+      />
       <SafeComposer enableDof={enableDof} />
     </>
   )
@@ -629,10 +690,12 @@ export default function CRTScene({
   onBootReady,
   onGlassRect,
   onContextLost,
+  suspended,
 }) {
   return (
     <div className={`scene-layer scene-canvas ${revealed ? 'is-ready' : ''}`}>
       <Canvas
+        frameloop={suspended ? 'never' : 'always'}
         dpr={[1, 1.5]}
         shadows
         gl={{
@@ -652,6 +715,11 @@ export default function CRTScene({
           }
           const onLost = (event) => {
             event.preventDefault()
+            try {
+              gl.setAnimationLoop(null)
+            } catch {
+              /* ignore */
+            }
             window.requestAnimationFrame(() => onContextLost?.())
           }
           gl.domElement.addEventListener('webglcontextlost', onLost, { once: true })

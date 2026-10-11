@@ -164,7 +164,7 @@ export default function OperatingSystem({
   return (
     <div
       ref={rootRef}
-      className={`os-root ${prefersReducedMotion() ? 'reduce-motion' : ''}`}
+      className={`os-root ${prefersReducedMotion() ? 'reduce-motion' : ''} ${interactive ? '' : 'is-inert'}`}
       aria-hidden={!interactive}
       style={{ pointerEvents: interactive ? 'auto' : 'none' }}
     >

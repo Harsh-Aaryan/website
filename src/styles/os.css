@@ -421,6 +421,12 @@
   overflow: hidden;
 }
 
+.os-root.is-inert .zoom-out-btn {
+  pointer-events: auto;
+  position: relative;
+  z-index: 120;
+}
+
 .desktop {
   position: absolute;
   inset: 0 0 var(--taskbar-h) 0;

@@ -1,5 +1,4 @@
 import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
-import { flushSync } from 'react-dom'
 import {
   STORAGE,
   TIMING,
@@ -118,6 +117,9 @@ export default function App() {
   const reducedRef = useRef(reduced)
   const beatRef = useRef(0)
   const doneTimer = useRef(0)
+  const channelRef = useRef(null)
+  const dying3d = useRef(false)
+  const [sceneHeld, setSceneHeld] = useState(false)
   const motionRef = useRef({
     dir: null,
     from: 0,
@@ -160,10 +162,9 @@ export default function App() {
     }
   }
 
-  const goStage = useCallback((next, sync = false) => {
+  const goStage = useCallback((next) => {
     stageRef.current = next
-    if (sync) flushSync(() => setStage(next))
-    else setStage(next)
+    setStage(next)
   }, [])
 
   const publishDebug = useCallback(() => {
@@ -207,6 +208,16 @@ export default function App() {
     zoomRaf.current = 0
     beatRef.current = 0
     doneTimer.current = 0
+    if (channelRef.current) {
+      try {
+        channelRef.current.port1.onmessage = null
+        channelRef.current.port1.close()
+        channelRef.current.port2.close()
+      } catch {
+        /* ignore */
+      }
+      channelRef.current = null
+    }
   }
 
   const landOnOs = useCallback(() => {
@@ -260,18 +271,11 @@ export default function App() {
         zoomRef.current = 0
         overlayOnRef.current = false
         if (el && !use3dRef.current) el.style.opacity = '1'
-        const park = () => {
-          setOverlayOn(false)
-          setOsMounted(true)
-          goStage('parked')
-        }
-        try {
-          flushSync(park)
-        } catch {
-          park()
-        }
-        window.setTimeout(() => parkedRef.current?.focus(), 40)
+        goStage('parked')
         publishDebug()
+        setOverlayOn(false)
+        setOsMounted(true)
+        window.setTimeout(() => parkedRef.current?.focus(), 40)
         return
       }
 
@@ -280,18 +284,11 @@ export default function App() {
       persistSkip()
       if (el && !use3dRef.current) el.style.opacity = '1'
       pendingLand.current = true
-      const land = () => {
-        setOverlayOn(true)
-        setOsMounted(true)
-        goStage('os')
-      }
-      try {
-        flushSync(land)
-      } catch {
-        land()
-      }
-      landOnOs()
+      goStage('os')
       publishDebug()
+      setOverlayOn(true)
+      setOsMounted(true)
+      landOnOs()
     },
     [goStage, landOnOs, publishDebug]
   )
@@ -323,7 +320,17 @@ export default function App() {
     zoomRaf.current = window.requestAnimationFrame(step)
     beatRef.current = window.setInterval(() => {
       advanceZoom()
-    }, 32)
+    }, 16)
+    const channel = new MessageChannel()
+    channelRef.current = channel
+    channel.port1.onmessage = () => {
+      advanceZoom()
+    }
+    try {
+      channel.port2.postMessage(0)
+    } catch {
+      /* ignore */
+    }
     const remain = Math.max(0, motionRef.current.duration - (performance.now() - motionRef.current.start))
     doneTimer.current = window.setTimeout(() => {
       advanceZoom()
@@ -342,7 +349,7 @@ export default function App() {
         duration,
         running: true,
       }
-      goStage('zooming', true)
+      goStage('zooming')
       setOsMounted(true)
       if (dir === 'parked') {
         announce('Zoomed out to monitor. Press any key to return.')
@@ -363,11 +370,43 @@ export default function App() {
     [advanceZoom, announce, goStage, publishDebug, pumpZoom]
   )
 
+  const reverseMotion = useCallback(
+    (dir) => {
+      const motion = motionRef.current
+      const now = performance.now()
+      const current = zoomRef.current
+      const remaining = dir === 'os' ? 1 - current : current
+      const full = zoomDuration(dir, 'zooming', use3dRef.current, reducedRef.current)
+      motion.dir = dir
+      motion.from = current
+      motion.start = now
+      motion.duration = full * Math.max(0.12, Math.min(1, remaining))
+      motion.running = true
+      if (dir === 'parked') {
+        announce('Zoomed out to monitor. Press any key to return.')
+      }
+      const el = overlayRef.current
+      if ((!use3dRef.current || reducedRef.current) && el) {
+        el.classList.add('is-crossfade')
+        overlayOnRef.current = true
+        setOverlayOn(true)
+      }
+      publishDebug()
+      advanceZoom()
+      if (motion.running) pumpZoom()
+    },
+    [advanceZoom, announce, publishDebug, pumpZoom]
+  )
+
   const requestZoom = useCallback(
     (dir) => {
       const motion = motionRef.current
       if (stageRef.current === 'zooming') {
         if (motion.running) {
+          if (motion.dir && motion.dir !== dir) {
+            reverseMotion(dir)
+            return
+          }
           advanceZoom()
           return
         }
@@ -383,7 +422,7 @@ export default function App() {
       if (now === 'parked' || now === 'loading') return
       beginZoom('parked')
     },
-    [advanceZoom, beginZoom, finishMotion]
+    [advanceZoom, beginZoom, finishMotion, reverseMotion]
   )
   requestZoomRef.current = requestZoom
 
@@ -391,15 +430,17 @@ export default function App() {
   const startZoomOut = useCallback(() => requestZoom('parked'), [requestZoom])
 
   const abandon3d = useCallback(() => {
+    if (dying3d.current && !use3dRef.current) {
+      if (motionRef.current.running) advanceZoom()
+      return
+    }
     if (!use3dRef.current) {
       if (motionRef.current.running) advanceZoom()
       return
     }
+    dying3d.current = true
     use3dRef.current = false
-    setUse3d(false)
-    setReady3d(true)
-    clearOverlayFrame()
-    glassRectRef.current = null
+    setSceneHeld(true)
     const running = motionRef.current.running
     const target = motionRef.current.dir
     const now = stageRef.current
@@ -412,23 +453,33 @@ export default function App() {
     stopPump()
     motionRef.current.running = false
     motionRef.current.dir = null
-    if (toOs || (running && target === 'os')) {
-      pendingLand.current = true
-      zoomRef.current = 1
-      overlayOnRef.current = true
-      setOverlayOn(true)
-      setOsMounted(true)
-      persistSkip()
-      goStage('os')
-      landOnOs()
-    } else {
-      zoomRef.current = 0
-      overlayOnRef.current = false
-      setOverlayOn(false)
-      setOsMounted(true)
-      goStage('parked')
+    const settle = () => {
+      clearOverlayFrame()
+      glassRectRef.current = null
+      setUse3d(false)
+      setSceneHeld(false)
+      setReady3d(true)
+      if (toOs || (running && target === 'os')) {
+        pendingLand.current = true
+        zoomRef.current = 1
+        overlayOnRef.current = true
+        setOverlayOn(true)
+        setOsMounted(true)
+        persistSkip()
+        goStage('os')
+        landOnOs()
+      } else {
+        zoomRef.current = 0
+        overlayOnRef.current = false
+        setOverlayOn(false)
+        setOsMounted(true)
+        goStage('parked')
+      }
+      publishDebug()
     }
-    publishDebug()
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(settle)
+    })
   }, [advanceZoom, goStage, landOnOs, publishDebug])
 
   useEffect(() => {
@@ -495,6 +546,17 @@ export default function App() {
     if (!overlayOn && stage !== 'os') return
     applyOverlayRect(overlayRef.current, glassRectRef.current, zoomRef.current)
   }, [overlayOn, stage])
+
+  useEffect(() => {
+    const onEsc = (event) => {
+      if (event.key !== 'Escape') return
+      if (stageRef.current !== 'zooming') return
+      event.preventDefault()
+      requestZoom('parked')
+    }
+    window.addEventListener('keydown', onEsc)
+    return () => window.removeEventListener('keydown', onEsc)
+  }, [requestZoom])
 
   useEffect(() => {
     const ignore = (event) =>
@@ -605,6 +667,7 @@ export default function App() {
               reducedMotion={reduced}
               revealed={ready3d || stage === 'os' || stage === 'parked'}
               enableDof={false}
+              suspended={sceneHeld}
               onContextLost={abandon3d}
               onBootReady={startZoom}
               onGlassRect={(rect) => {

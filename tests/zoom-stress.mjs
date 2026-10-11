@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
  * Deterministic zoom-trigger stress: 20 out/in cycles on phone (flat)
- * and desktop-site (3D) profiles. Synthetic pointer events + 4x CPU.
- * Fails if any trigger does not reach its target stage within 2.5s.
+ * and desktop-site (3D) profiles, plus a mid-transition reverse suite.
+ * Synthetic pointer events + 4x CPU.
+ * Fails loudly if any trigger does not reach its target stage within 2.5s.
  */
 import { spawn } from 'node:child_process'
 import { chromium } from 'playwright-core'
@@ -25,6 +26,17 @@ const PROFILES = [
     hasTouch: true,
     userAgent: PHONE_UA,
     expectDisplay: 'flat',
+    reverse: false,
+  },
+  {
+    name: 'phone-flat-reverse',
+    viewport: { width: 412, height: 915 },
+    deviceScaleFactor: 3,
+    isMobile: true,
+    hasTouch: true,
+    userAgent: PHONE_UA,
+    expectDisplay: 'flat',
+    reverse: true,
   },
   {
     name: 'desktop-site-3d',
@@ -34,6 +46,7 @@ const PROFILES = [
     hasTouch: true,
     userAgent: DESKTOP_UA,
     expectDisplay: '3d',
+    reverse: false,
   },
 ]
 
@@ -81,7 +94,7 @@ async function synthPointer(page, selectorOrFn, label) {
       clientY: y,
     }
     const top = document.elementFromPoint(x, y)
-    if (top && top !== el && !el.contains(top) && !top.closest?.('.start-menu')) {
+    if (top && top !== el && !el.contains(top) && !top.closest?.('.start-menu') && !top.closest?.('.zoom-out-btn')) {
       throw new Error(`covered by ${top.className || top.tagName}`)
     }
     el.dispatchEvent(new PointerEvent('pointerdown', opts))
@@ -101,18 +114,34 @@ async function waitStage(page, want, ms = LIMIT_MS) {
         return Boolean(d && d.stage === stage && d.lock === false)
       },
       want,
-      { timeout: ms, polling: 50 }
-    )
-    await page.waitForFunction(
-      (stage) => document.querySelector('#os-main')?.dataset.stage === stage,
-      want,
-      { timeout: Math.max(ms, 8000), polling: 50 }
+      { timeout: ms, polling: 16 }
     )
   } catch {
     const last = await debug(page)
-    throw new Error(`did not reach ${want} within ${ms}ms last=${JSON.stringify(last)}`)
+    throw new Error(`FAIL did not reach ${want} within ${ms}ms last=${JSON.stringify(last)}`)
   }
   return Date.now() - t0
+}
+
+async function waitReady(page, profile) {
+  const bootMs = await waitStage(page, 'os', 20000)
+  const display = await page.evaluate(() => window.__crtDebug?.display)
+  if (display !== profile.expectDisplay) {
+    throw new Error(`FAIL ${profile.name} display=${display} expected ${profile.expectDisplay}`)
+  }
+  if (profile.expectDisplay === '3d') {
+    await page.waitForFunction(
+      () =>
+        Boolean(
+          window.__glassMetrics &&
+            document.querySelector('.scene-canvas.is-ready') &&
+            window.__crtWarmed
+        ),
+      null,
+      { timeout: 20000, polling: 50 }
+    )
+  }
+  return { bootMs, display }
 }
 
 async function triggerZoomOut(page, cycle) {
@@ -127,6 +156,71 @@ async function triggerZoomOut(page, cycle) {
   return 'tray'
 }
 
+async function openSixWindows(page) {
+  await page.evaluate(() => {
+    document.querySelectorAll('[data-icon]').forEach((el) => el.click())
+  })
+  const count = await page.evaluate(() => document.querySelectorAll('.window').length)
+  if (count < 6) throw new Error(`FAIL expected 6 windows, got ${count}`)
+}
+
+async function runCycles(page, profile) {
+  const cycles = []
+  for (let i = 1; i <= CYCLES; i += 1) {
+    const via = await triggerZoomOut(page, i)
+    const outMs = await waitStage(page, 'parked')
+    if (outMs >= LIMIT_MS) throw new Error(`FAIL SLOW ${profile.name} #${i} ${via} out=${outMs}ms`)
+    await synthPointer(page, '__parked__', 'parked zoom in')
+    const inMs = await waitStage(page, 'os')
+    if (inMs >= LIMIT_MS) throw new Error(`FAIL SLOW ${profile.name} #${i} ${via} in=${inMs}ms`)
+    cycles.push({ cycle: i, via, outMs, inMs })
+    log(`  ${profile.name} #${i} ${via} out=${outMs}ms in=${inMs}ms`)
+  }
+  return cycles
+}
+
+async function runReverse(page, profile) {
+  await openSixWindows(page)
+  const cycles = []
+  for (let i = 1; i <= CYCLES; i += 1) {
+    await synthPointer(page, '.zoom-out-btn', 'tray to parked')
+    await waitStage(page, 'parked')
+    await synthPointer(page, '__parked__', 'start zoom in')
+    await page.waitForFunction(
+      () => window.__crtDebug?.running === true && window.__crtDebug?.target === 'os',
+      null,
+      { timeout: LIMIT_MS, polling: 16 }
+    )
+    const t0 = Date.now()
+    const via = i % 2 === 1 ? 'escape' : 'tray'
+    if (via === 'escape') {
+      await page.keyboard.press('Escape')
+    } else {
+      await page.waitForFunction(
+        () => {
+          const btn = document.querySelector('.zoom-out-btn')
+          const r = btn?.getBoundingClientRect()
+          return Boolean(r && r.width > 8 && r.height > 8)
+        },
+        null,
+        { timeout: LIMIT_MS, polling: 16 }
+      )
+      await synthPointer(page, '.zoom-out-btn', 'mid-zoom tray reverse')
+    }
+    const outMs = await waitStage(page, 'parked')
+    if (outMs >= LIMIT_MS) {
+      throw new Error(`FAIL SLOW reverse ${profile.name} #${i} ${via} ${outMs}ms`)
+    }
+    cycles.push({ cycle: i, via: `reverse-${via}`, outMs, inMs: 0 })
+    log(`  ${profile.name} #${i} reverse-${via} parked=${outMs}ms`)
+    await synthPointer(page, '__parked__', 'return to os')
+    const inMs = await waitStage(page, 'os')
+    if (inMs >= LIMIT_MS) throw new Error(`FAIL SLOW reverse return ${profile.name} #${i} in=${inMs}ms`)
+    cycles[cycles.length - 1].inMs = inMs
+  }
+  return cycles
+}
+
 async function runProfile(browser, base, profile) {
   const context = await browser.newContext({
     viewport: profile.viewport,
@@ -137,6 +231,8 @@ async function runProfile(browser, base, profile) {
     reducedMotion: 'no-preference',
   })
   const page = await context.newPage()
+  const pageErrors = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
   const cdp = await context.newCDPSession(page)
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 })
   await page.addInitScript(() => {
@@ -148,26 +244,25 @@ async function runProfile(browser, base, profile) {
     }
   })
 
-  const url = new URL(base)
-  await page.goto(url.toString(), { waitUntil: 'domcontentloaded', timeout: 30000 })
-  const bootMs = await waitStage(page, 'os', 20000)
-  const display = await page.evaluate(() => window.__crtDebug?.display)
-  if (display !== profile.expectDisplay) {
-    throw new Error(`${profile.name} display=${display} expected ${profile.expectDisplay}`)
+  await page.goto(new URL(base).toString(), { waitUntil: 'domcontentloaded', timeout: 30000 })
+  const { bootMs, display } = await waitReady(page, profile)
+  const cycles = profile.reverse ? await runReverse(page, profile) : await runCycles(page, profile)
+  if (profile.expectDisplay === '3d' && !profile.reverse) {
+    await synthPointer(page, '.zoom-out-btn', 'park for context-loss')
+    await waitStage(page, 'parked')
+    await page.evaluate(() => {
+      const canvas = document.querySelector('canvas')
+      const gl = canvas?.getContext('webgl2') || canvas?.getContext('webgl')
+      gl?.getExtension('WEBGL_lose_context')?.loseContext()
+    })
+    await new Promise((resolve) => setTimeout(resolve, 600))
   }
-
-  const cycles = []
-  for (let i = 1; i <= CYCLES; i += 1) {
-    const via = await triggerZoomOut(page, i)
-    const outMs = await waitStage(page, 'parked')
-    await synthPointer(page, '__parked__', 'parked zoom in')
-    const inMs = await waitStage(page, 'os')
-    cycles.push({ cycle: i, via, outMs, inMs })
-    log(`  ${profile.name} #${i} ${via} out=${outMs}ms in=${inMs}ms`)
+  const trimErrors = pageErrors.filter((msg) => /trim|ShadowAlpha|Cannot read properties of null/i.test(msg))
+  if (trimErrors.length) {
+    throw new Error(`FAIL pageerror ${trimErrors.join(' | ')}`)
   }
-
   await context.close()
-  return { name: profile.name, display, bootMs, cycles }
+  return { name: profile.name, display, bootMs, cycles, reverse: profile.reverse, pageErrors }
 }
 
 async function main() {
@@ -197,7 +292,9 @@ async function main() {
   const failures = []
   try {
     for (const profile of PROFILES) {
-      log(`\n== ${profile.name} ${profile.viewport.width}x${profile.viewport.height} dpr=${profile.deviceScaleFactor} cpu=4x ==`)
+      log(
+        `\n== ${profile.name} ${profile.viewport.width}x${profile.viewport.height} dpr=${profile.deviceScaleFactor} cpu=4x${profile.reverse ? ' reverse' : ''} ==`
+      )
       try {
         results.push(await runProfile(browser, base, profile))
       } catch (error) {
@@ -211,10 +308,12 @@ async function main() {
   }
 
   log('\n== summary ==')
+  let total = 0
   for (const result of results) {
     const slow = result.cycles.filter((c) => c.outMs >= LIMIT_MS || c.inMs >= LIMIT_MS)
-    const maxOut = Math.max(...result.cycles.map((c) => c.outMs))
-    const maxIn = Math.max(...result.cycles.map((c) => c.inMs))
+    const maxOut = result.cycles.length ? Math.max(...result.cycles.map((c) => c.outMs)) : 0
+    const maxIn = result.cycles.length ? Math.max(...result.cycles.map((c) => c.inMs)) : 0
+    total += result.cycles.length
     log(
       `${result.name} display=${result.display} boot=${result.bootMs}ms cycles=${result.cycles.length} maxOut=${maxOut}ms maxIn=${maxIn}ms`
     )
@@ -227,7 +326,7 @@ async function main() {
     process.exitCode = 1
     return
   }
-  log('PASS 40/40 triggers reached target within 2.5s')
+  log(`PASS ${total}/${total} triggers reached target within 2.5s`)
 }
 
 main().catch((error) => {
