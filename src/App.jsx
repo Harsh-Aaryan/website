@@ -52,10 +52,12 @@ function visibleGlassRect(rect) {
   }
 }
 
-function wipeProgress(zoom, aspect) {
+function wipeProgress(zoom, aspect, box) {
   const t = Math.min(1, Math.max(0, (zoom - 0.9) / 0.1))
-  if (aspect < 1) {
-    // Quartic ease-out: last 10% reaches ~full by 0.95 from a ~70% glass.
+  const span = box ? box.width / Math.max(1, window.innerWidth) : 1
+  // Portrait and ultrawide start from a small glass; ease-out so 0.95 is ~full.
+  // 16:9 glass is already ≥88% wide, so it keeps the existing smoothstep wipe.
+  if (aspect < 1 || span < 0.88) {
     return 1 - (1 - t) ** 4
   }
   return smoothstep(t)
@@ -69,8 +71,8 @@ function overlaySourceRect(rect, aspect) {
 function applyOverlayRect(el, rect, zoom) {
   if (!el || !rect) return
   const aspect = window.innerWidth / Math.max(1, window.innerHeight)
-  const u = wipeProgress(zoom, aspect)
   const box = overlaySourceRect(rect, aspect)
+  const u = wipeProgress(zoom, aspect, box)
   const vw = window.innerWidth
   const vh = window.innerHeight
   el.style.left = `${box.left * (1 - u)}px`
