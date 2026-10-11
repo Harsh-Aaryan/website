@@ -16,7 +16,7 @@ const TV_SCALE = 1.55
 const TV_YAW = 0.18
 
 const START_CAM = { pos: [0.68, 0.48, 1.42], look: [0.0, 0.28, 0.02], fov: 30 }
-const END_CAM = { pos: [0.10, 0.38, 0.72], look: [0.0, 0.30, 0.08], fov: 32 }
+const END_CAM = { pos: [0.12, 0.34, 0.84], look: [0.0, 0.22, 0.06], fov: 32 }
 
 /** PerspectiveCamera.fov is vertical — widen slightly on tall frames. */
 function startCamForAspect(aspect) {
