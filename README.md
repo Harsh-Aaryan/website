@@ -55,7 +55,7 @@ The desktop intro is a photoreal CRT on a dark desk in a night room. Models and 
 
 | Asset | Author | Source | License | In repo |
 | --- | --- | --- | --- | --- |
-| Television 02 | Benny Weimer | https://polyhaven.com/a/television_02 | CC0 1.0 | `public/assets/scene/r1/television_02.glb` (~154KB meshopt + WebP ≤1K) |
+| Television 02 | Benny Weimer | https://polyhaven.com/a/television_02 | CC0 1.0 | `public/assets/scene/r2/television_02.glb` (~317KB meshopt + 2048 WebP) |
 | Unfinished Office Night (1K env) | Sergej Majboroda | https://polyhaven.com/a/unfinished_office_night | CC0 1.0 | `public/assets/scene/r1/unfinished_office_night_1k.jpg` |
 | Modern Buildings Night | Greg Zaal | https://polyhaven.com/a/modern_buildings_night | CC0 1.0 | `public/assets/scene/r1/modern_buildings_night.webp` |
 | Dark Wood | Dario Barresi, Dimitrios Savva, Rico Cilliers | https://polyhaven.com/a/dark_wood | CC0 1.0 | `public/assets/scene/r1/dark_wood_*_1k.webp` |

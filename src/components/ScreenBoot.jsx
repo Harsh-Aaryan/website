@@ -42,26 +42,19 @@ export function useBootTexture({ running, reduced, onReady }) {
     }
 
     const paintBackground = () => {
-      ctx.fillStyle = '#120c06'
+      ctx.fillStyle = '#0E0A05'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
-      const glow = ctx.createRadialGradient(512, 384, 50, 512, 400, 520)
-      glow.addColorStop(0, 'rgba(255, 176, 0, 0.22)')
-      glow.addColorStop(0.55, 'rgba(255, 176, 0, 0.06)')
-      glow.addColorStop(1, 'rgba(14, 10, 5, 0)')
-      ctx.fillStyle = glow
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
-      ctx.fillStyle = 'rgba(255, 176, 0, 0.04)'
+      ctx.fillStyle = 'rgba(255, 176, 0, 0.03)'
       for (let y = 0; y < canvas.height; y += 4) {
         ctx.fillRect(0, y, canvas.width, 1)
       }
     }
 
     const paintVignette = () => {
-      const edge = ctx.createRadialGradient(512, 384, 280, 512, 384, 620)
-      edge.addColorStop(0, 'rgba(8, 6, 3, 0)')
-      edge.addColorStop(0.72, 'rgba(8, 6, 3, 0.04)')
-      edge.addColorStop(0.9, 'rgba(6, 4, 2, 0.16)')
-      edge.addColorStop(1, 'rgba(4, 2, 1, 0.38)')
+      const edge = ctx.createRadialGradient(512, 384, 340, 512, 384, 640)
+      edge.addColorStop(0, 'rgba(14, 10, 5, 0)')
+      edge.addColorStop(0.8, 'rgba(14, 10, 5, 0.02)')
+      edge.addColorStop(1, 'rgba(8, 6, 3, 0.18)')
       ctx.fillStyle = edge
       ctx.fillRect(0, 0, canvas.width, canvas.height)
     }
@@ -70,18 +63,21 @@ export function useBootTexture({ running, reduced, onReady }) {
       paintBackground()
       ctx.shadowColor = 'transparent'
       ctx.shadowBlur = 0
-      ctx.fillStyle = '#FFB000'
-      ctx.font = '48px VT323, "IBM Plex Mono", ui-monospace, monospace'
+      // White glyphs × emissive #FFB000 keep phosphor exact (toneMapped false).
+      ctx.fillStyle = '#FFFFFF'
+      ctx.font = '40px VT323, "IBM Plex Mono", ui-monospace, monospace'
       ctx.textBaseline = 'top'
-      const padX = Math.round(canvas.width * 0.14)
-      const padY = Math.round(canvas.height * 0.09)
+      const padX = Math.round(canvas.width * 0.16)
+      const lineH = 44
+      const blockH = BOOT_LINES.length * lineH + 36
+      const padY = Math.round((canvas.height - blockH) / 2)
       let y = padY
       BOOT_LINES.slice(0, count).forEach((line) => {
         ctx.fillText(line || ' ', padX, y)
-        y += 48
+        y += lineH
       })
       if (count >= BOOT_LINES.length) {
-        ctx.fillRect(padX, y + 8, 16, 28)
+        ctx.fillRect(padX, y + 8, 14, 24)
       }
       paintVignette()
       texture.needsUpdate = true

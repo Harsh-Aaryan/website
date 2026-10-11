@@ -15,23 +15,16 @@ import { useBootTexture } from './ScreenBoot'
 const TV_SCALE = 1.55
 const TV_YAW = 0.18
 
-const START_CAM = { pos: [0.36, 0.41, 0.92], look: [0.0, 0.34, 0.1], fov: 28 }
-const END_CAM = { pos: [0.01, 0.395, 0.4], look: [0.0, 0.385, 0.175], fov: 24 }
-const REF_ASPECT = 16 / 9
+const START_CAM = { pos: [0.68, 0.48, 1.42], look: [0.0, 0.28, 0.02], fov: 30 }
+const END_CAM = { pos: [0.06, 0.40, 0.55], look: [0.0, 0.34, 0.10], fov: 30 }
 
-/** PerspectiveCamera.fov is vertical, so tall viewports crop the BIOS left column. */
+/** PerspectiveCamera.fov is vertical — widen slightly on tall frames. */
 function startCamForAspect(aspect) {
-  const safe = Math.max(0.42, aspect)
-  let fov = START_CAM.fov
-  if (safe < REF_ASPECT) {
-    fov = Math.min(64, START_CAM.fov * (REF_ASPECT / safe))
-  }
-  const pull = safe < 0.8 ? 0.3 : safe < 1 ? 0.16 : safe < 1.35 ? 0.08 : 0
-  const x = safe < 1 ? 0.14 : START_CAM.pos[0]
+  const safe = Math.max(0.45, aspect)
+  if (safe >= 1) return START_CAM
   return {
-    pos: [x, START_CAM.pos[1], START_CAM.pos[2] + pull],
-    look: START_CAM.look,
-    fov,
+    ...START_CAM,
+    fov: Math.min(40, START_CAM.fov * (1.15 / safe)),
   }
 }
 
@@ -85,7 +78,7 @@ function NightEnv() {
 }
 
 function VintageCRT({ bootMap }) {
-  const { scene } = useGLTF('/assets/scene/r1/television_02.glb', false, true)
+  const { scene } = useGLTF('/assets/scene/r2/television_02.glb', false, true)
   const clone = useMemo(() => scene.clone(true), [scene])
   const [screen, setScreen] = useState({
     position: [0, 0.29, 0.145],
@@ -94,8 +87,8 @@ function VintageCRT({ bootMap }) {
 
   useLayoutEffect(() => {
     bootMap.wrapS = bootMap.wrapT = THREE.ClampToEdgeWrapping
-    bootMap.repeat.set(1.16, 1.1)
-    bootMap.offset.set(-0.08, -0.05)
+    bootMap.repeat.set(1, 1)
+    bootMap.offset.set(0, 0)
     bootMap.needsUpdate = true
   }, [bootMap])
 
@@ -138,15 +131,15 @@ function VintageCRT({ bootMap }) {
         geometry={tubeGeo}
         position={[screen.position[0], screen.position[1], screen.position[2] - 0.004]}
       >
-        <meshBasicMaterial color="#070503" />
+        <meshBasicMaterial color="#0E0A05" />
       </mesh>
       <mesh geometry={tubeGeo} position={screen.position} renderOrder={2}>
         <meshStandardMaterial
-          map={bootMap}
+          color="#000000"
+          emissive="#ffb000"
           emissiveMap={bootMap}
-          emissive={new THREE.Color('#ffb000')}
-          emissiveIntensity={1.05}
-          roughness={0.42}
+          emissiveIntensity={1}
+          roughness={1}
           metalness={0}
           toneMapped={false}
           polygonOffset
@@ -160,14 +153,14 @@ function VintageCRT({ bootMap }) {
         renderOrder={3}
       >
         <meshPhysicalMaterial
-          color="#d8e4ee"
-          roughness={0.08}
-          metalness={0.04}
+          color="#c5d0da"
+          roughness={0.14}
+          metalness={0}
           transparent
-          opacity={0.11}
-          clearcoat={0.85}
-          clearcoatRoughness={0.22}
-          envMapIntensity={1.35}
+          opacity={0.07}
+          clearcoat={0.65}
+          clearcoatRoughness={0.32}
+          envMapIntensity={0.32}
           depthWrite={false}
         />
       </mesh>
@@ -425,7 +418,7 @@ function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady }) 
           />
         )}
         <Noise opacity={0.018} />
-          <Vignette offset={0.46} darkness={0.22} />
+          <Vignette offset={0.52} darkness={0.16} />
       </EffectComposer>
     </>
   )

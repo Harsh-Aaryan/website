@@ -4,7 +4,7 @@
    Author: Benny Weimer
    Source: https://polyhaven.com/a/television_02
    License: CC0 1.0
-   File: r1/television_02.glb (meshopt + WebP textures ≤1K)
+   File: r2/television_02.glb (meshopt + 2048 WebP textures ~294KB)
 
 2. Unfinished Office Night HDRI
    Author: Sergej Majboroda
