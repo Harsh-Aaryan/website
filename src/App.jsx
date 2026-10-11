@@ -77,8 +77,8 @@ function applyOverlayRect(el, rect, zoom) {
 export default function App() {
   const skipStored = readStored(STORAGE.skipIntro, '') === '1'
   const reduced = prefersReducedMotion()
-  const threeD = shouldUse3D()
   const zoomParam = readZoomParam()
+  const [use3d, setUse3d] = useState(() => shouldUse3D())
 
   const [stage, setStage] = useState(() => {
     if (skipStored) return 'os'
@@ -89,7 +89,7 @@ export default function App() {
   })
   const [themeId, setThemeId] = useState(() => readStored(STORAGE.theme, 'amber'))
   const [muted, setMuted] = useState(() => readStored(STORAGE.muted, '1') !== '0')
-  const [ready3d, setReady3d] = useState(!threeD)
+  const [ready3d, setReady3d] = useState(() => !shouldUse3D())
   const [loadProgress, setLoadProgress] = useState(8)
   const [overlayOn, setOverlayOn] = useState(() => (zoomParam ?? (skipStored ? 1 : 0)) >= 0.9)
   const [osMounted, setOsMounted] = useState(() => skipStored || (zoomParam ?? 0) >= 0.9)
@@ -106,6 +106,10 @@ export default function App() {
   const stageRef = useRef(stage)
   const startButtonRef = useRef(null)
   const parkedRef = useRef(null)
+  const use3dRef = useRef(use3d)
+  const zoomWatch = useRef(0)
+  const zoomTarget = useRef(null)
+  use3dRef.current = use3d
   stageRef.current = stage
 
   useCrtAudio(!muted && stage !== 'loading')
@@ -122,13 +126,13 @@ export default function App() {
 
   useEffect(() => {
     if (stage !== 'loading') return
-    if (threeD && loadProgress < 92) {
+    if (use3d && loadProgress < 92) {
       const fallback = window.setTimeout(() => setStage('boot'), 8000)
       return () => window.clearTimeout(fallback)
     }
     const timer = window.setTimeout(() => setStage('boot'), TIMING.loadingMinMs)
     return () => window.clearTimeout(timer)
-  }, [loadProgress, stage, threeD])
+  }, [loadProgress, stage, use3d])
 
   const persistSkip = () => {
     try {
@@ -142,6 +146,34 @@ export default function App() {
     stageRef.current = next
     setStage(next)
   }, [])
+
+  const clearOverlayFrame = () => {
+    const el = overlayRef.current
+    if (!el) return
+    el.style.left = ''
+    el.style.top = ''
+    el.style.width = ''
+    el.style.height = ''
+    el.style.clipPath = 'none'
+    el.style.opacity = '1'
+    el.style.borderRadius = ''
+  }
+
+  const clearZoomWatch = () => {
+    window.clearTimeout(zoomWatch.current)
+    zoomWatch.current = 0
+  }
+
+  const snapParked = useCallback(() => {
+    cancelAnimationFrame(zoomRaf.current)
+    clearZoomWatch()
+    zoomLock.current = false
+    zoomRef.current = 0
+    overlayOnRef.current = false
+    setOverlayOn(false)
+    setOsMounted(true)
+    goStage('parked')
+  }, [goStage])
 
   const landOnOs = useCallback(() => {
     if (!pendingLand.current) return
@@ -165,7 +197,67 @@ export default function App() {
     pendingLand.current = true
     goStage('os')
     landOnOs()
+    clearZoomWatch()
   }, [goStage, landOnOs])
+
+  const abandon3d = useCallback(() => {
+    if (!use3dRef.current) {
+      cancelAnimationFrame(zoomRaf.current)
+      clearZoomWatch()
+      zoomLock.current = false
+      return
+    }
+    use3dRef.current = false
+    setUse3d(false)
+    setReady3d(true)
+    clearOverlayFrame()
+    cancelAnimationFrame(zoomRaf.current)
+    clearZoomWatch()
+    zoomLock.current = false
+    glassRectRef.current = null
+    const now = stageRef.current
+    const toOs =
+      now === 'os' ||
+      now === 'loading' ||
+      now === 'boot' ||
+      zoomTarget.current === 'os' ||
+      zoomRef.current >= 0.45
+    if (toOs) {
+      pendingLand.current = true
+      zoomRef.current = 1
+      overlayOnRef.current = true
+      setOverlayOn(true)
+      setOsMounted(true)
+      persistSkip()
+      goStage('os')
+      landOnOs()
+    } else {
+      snapParked()
+    }
+  }, [goStage, landOnOs, snapParked])
+
+  const armZoomWatch = useCallback(
+    (target) => {
+      zoomTarget.current = target
+      clearZoomWatch()
+      zoomWatch.current = window.setTimeout(() => {
+        if (stageRef.current !== 'zooming' && !zoomLock.current) return
+        cancelAnimationFrame(zoomRaf.current)
+        zoomLock.current = false
+        if (use3dRef.current && !glassRectRef.current) {
+          abandon3d()
+          return
+        }
+        if (target === 'os') {
+          pendingLand.current = true
+          finishToOs()
+        } else {
+          snapParked()
+        }
+      }, TIMING.zoomWatchMs)
+    },
+    [abandon3d, finishToOs, snapParked]
+  )
 
   useEffect(() => {
     if (stage !== 'os') return
@@ -180,7 +272,8 @@ export default function App() {
     if (nowStage !== 'boot' && nowStage !== 'parked') return
     zoomLock.current = true
     cancelAnimationFrame(zoomRaf.current)
-    if (reduced || !threeD) {
+    if (reduced || !use3d) {
+      armZoomWatch('os')
       zoomRef.current = 1
       overlayOnRef.current = true
       setOsMounted(true)
@@ -199,11 +292,13 @@ export default function App() {
       })
       window.setTimeout(() => {
         zoomLock.current = false
+        clearZoomWatch()
         startButtonRef.current?.focus()
       }, TIMING.crossfadeMs)
       return
     }
     goStage('zooming')
+    armZoomWatch('os')
     const from = zoomRef.current
     const start = performance.now()
     const tick = (now) => {
@@ -223,7 +318,7 @@ export default function App() {
       }
     }
     zoomRaf.current = requestAnimationFrame(tick)
-  }, [finishToOs, goStage, landOnOs, reduced, threeD])
+  }, [armZoomWatch, finishToOs, goStage, landOnOs, reduced, use3d])
 
   const startZoomOut = useCallback(() => {
     if (zoomLock.current) return
@@ -231,7 +326,8 @@ export default function App() {
     zoomLock.current = true
     cancelAnimationFrame(zoomRaf.current)
     announce('Zoomed out to monitor. Press any key to return.')
-    if (reduced || !threeD) {
+    if (reduced || !use3d) {
+      armZoomWatch('parked')
       const el = overlayRef.current
       if (el) {
         el.classList.add('is-crossfade')
@@ -248,11 +344,13 @@ export default function App() {
         setOverlayOn(false)
         zoomLock.current = false
         goStage('parked')
+        clearZoomWatch()
         window.setTimeout(() => parkedRef.current?.focus(), 40)
       }, TIMING.crossfadeMs)
       return
     }
     goStage('zooming')
+    armZoomWatch('parked')
     const from = zoomRef.current || 1
     const start = performance.now()
     const tick = (now) => {
@@ -268,13 +366,67 @@ export default function App() {
         setOverlayOn(false)
         zoomLock.current = false
         goStage('parked')
+        clearZoomWatch()
         window.setTimeout(() => parkedRef.current?.focus(), 40)
       }
     }
     zoomRaf.current = requestAnimationFrame(tick)
-  }, [announce, goStage, reduced, threeD])
+  }, [announce, armZoomWatch, goStage, reduced, use3d])
 
-  useEffect(() => () => cancelAnimationFrame(zoomRaf.current), [])
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(zoomRaf.current)
+      clearZoomWatch()
+    },
+    []
+  )
+
+  useEffect(() => {
+    const sync = () => {
+      if (shouldUse3D()) return
+      if (use3dRef.current) abandon3d()
+    }
+    window.addEventListener('resize', sync)
+    window.addEventListener('orientationchange', sync)
+    return () => {
+      window.removeEventListener('resize', sync)
+      window.removeEventListener('orientationchange', sync)
+    }
+  }, [abandon3d])
+
+  useEffect(() => {
+    const onLost = (event) => {
+      event.preventDefault()
+      abandon3d()
+    }
+    window.addEventListener('webglcontextlost', onLost, true)
+    return () => window.removeEventListener('webglcontextlost', onLost, true)
+  }, [abandon3d])
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState !== 'hidden') return
+      if (stageRef.current !== 'zooming' && !zoomLock.current) return
+      cancelAnimationFrame(zoomRaf.current)
+      zoomLock.current = false
+      clearZoomWatch()
+      if (zoomTarget.current === 'parked') snapParked()
+      else {
+        pendingLand.current = true
+        finishToOs()
+      }
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [finishToOs, snapParked])
+
+  useEffect(() => {
+    if (!use3d) return
+    const id = window.setTimeout(() => {
+      if (use3dRef.current && !glassRectRef.current) abandon3d()
+    }, TIMING.zoomWatchMs)
+    return () => window.clearTimeout(id)
+  }, [abandon3d, use3d])
 
   useEffect(() => {
     if (!overlayOn && stage !== 'os') return
@@ -318,6 +470,7 @@ export default function App() {
     pendingLand.current = true
     goStage('os')
     landOnOs()
+    clearZoomWatch()
   }
 
   const toggleTheme = () => {
@@ -360,7 +513,7 @@ export default function App() {
     !overlayOn
 
   return (
-    <main className="app" id="os-main">
+    <main className="app" id="os-main" data-display={use3d ? '3d' : 'flat'}>
       <a className="skip-link" href="#os-main">
         Skip to content
       </a>
@@ -368,7 +521,7 @@ export default function App() {
         {live}
       </div>
 
-      {threeD && (
+      {use3d && (
         <>
           <div className="room-fallback" aria-hidden="true" />
           <Suspense fallback={<LoadingScreen progress={loadProgress} compact />}>
@@ -380,6 +533,7 @@ export default function App() {
               reducedMotion={reduced}
               revealed={ready3d || stage === 'os' || stage === 'parked'}
               enableDof={false}
+              onContextLost={abandon3d}
               onBootReady={startZoom}
               onGlassRect={(rect) => {
                 glassRectRef.current = rect
@@ -392,9 +546,9 @@ export default function App() {
           </Suspense>
         </>
       )}
-      {stage === 'loading' && threeD && <LoadingScreen progress={loadProgress} compact />}
+      {stage === 'loading' && use3d && <LoadingScreen progress={loadProgress} compact />}
 
-      {!threeD && (stage === 'loading' || stage === 'boot' || stage === 'zooming') && (
+      {!use3d && (stage === 'loading' || stage === 'boot' || stage === 'zooming') && (
         <FlatCRT stage={stage}>
           {stage === 'loading' && <LoadingScreen progress={loadProgress} />}
           {stage === 'boot' && (
@@ -410,16 +564,39 @@ export default function App() {
       {osMounted && (
         <div
           ref={overlayRef}
-          className={threeD ? 'screen-overlay is-framed' : 'flat-os-bezel'}
-          hidden={threeD ? !overlayVisible : !(overlayVisible || stage === 'parked')}
+          className={use3d ? 'screen-overlay is-framed' : 'flat-os-bezel'}
+          hidden={use3d ? !overlayVisible : !(overlayVisible || stage === 'parked')}
         >
-          <div hidden={!threeD && stage === 'parked'} style={{ height: '100%' }}>
+          <div hidden={!use3d && stage === 'parked'} style={{ height: '100%' }}>
             <OperatingSystem interactive={stage === 'os'} {...osProps} />
           </div>
-          {!threeD && stage === 'parked' && (
+          {!use3d && stage === 'parked' && (
             <BootScreen running={false} onReady={startZoom} reduced parked />
           )}
         </div>
+      )}
+
+      {use3d && (stage === 'parked' || stage === 'zooming') && !overlayVisible && (
+        <button
+          type="button"
+          className="scene-recover"
+          onClick={() => {
+            zoomLock.current = false
+            clearZoomWatch()
+            if (stageRef.current === 'zooming' && zoomTarget.current === 'parked') {
+              snapParked()
+              return
+            }
+            if (stageRef.current === 'zooming') {
+              pendingLand.current = true
+              finishToOs()
+              return
+            }
+            startZoom()
+          }}
+        >
+          PRESS ANY KEY
+        </button>
       )}
 
       {stage === 'parked' && (
@@ -430,6 +607,7 @@ export default function App() {
           onPointerDown={(event) => {
             event.preventDefault()
             event.stopPropagation()
+            zoomLock.current = false
             startZoom()
           }}
         >

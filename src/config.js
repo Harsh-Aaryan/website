@@ -54,6 +54,7 @@ export const TIMING = {
   bootHoldMs: 280,
   zoomMs: 2600,
   zoomOutMs: 1800,
+  zoomWatchMs: 4000,
   crossfadeMs: 420,
   handoffFlashMs: 180,
   humGain: 0.012,
@@ -91,6 +92,17 @@ export function isMobileViewport() {
   return window.matchMedia(`(max-width: ${BREAKPOINT_MOBILE}px)`).matches
 }
 
+/** Phones / coarse-pointer portrait, including desktop-site and pre-viewport paints. */
+export function isPhoneLike() {
+  const shortest = Math.min(window.innerWidth || 0, window.innerHeight || 0)
+  const coarse = window.matchMedia('(pointer: coarse)').matches
+  const noHover = window.matchMedia('(hover: none)').matches
+  const touch = (navigator.maxTouchPoints || 0) > 0
+  if (shortest > 0 && shortest <= BREAKPOINT_MOBILE) return true
+  if ((coarse || noHover || touch) && shortest > 0 && shortest <= 920) return true
+  return isMobileViewport()
+}
+
 export function hasWebGL() {
   try {
     const canvas = document.createElement('canvas')
@@ -109,6 +121,6 @@ export function shouldUse3D() {
   if (params.get('flat') === '1') return false
   if (params.get('force3d') === '1') return hasWebGL()
   if (prefersReducedMotion()) return false
-  if (isMobileViewport()) return false
+  if (isPhoneLike()) return false
   return hasWebGL()
 }

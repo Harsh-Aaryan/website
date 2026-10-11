@@ -607,6 +607,7 @@ export default function CRTScene({
   enableDof,
   onBootReady,
   onGlassRect,
+  onContextLost,
 }) {
   return (
     <div className={`scene-layer scene-canvas ${revealed ? 'is-ready' : ''}`}>
@@ -623,7 +624,11 @@ export default function CRTScene({
         }}
         camera={{ position: START_CAM.pos, fov: START_CAM.fov }}
         onCreated={({ gl }) => {
-          gl.domElement.addEventListener('webglcontextlost', (event) => event.preventDefault())
+          const onLost = (event) => {
+            event.preventDefault()
+            onContextLost?.()
+          }
+          gl.domElement.addEventListener('webglcontextlost', onLost, { once: true })
         }}
       >
         <LoadBridge onProgress={onProgress} onReady={onReady} />
