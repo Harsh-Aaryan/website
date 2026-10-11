@@ -230,6 +230,11 @@
     inset 0 0 36px rgba(0, 0, 0, 0.5);
 }
 
+.flat-os-bezel.is-crossfade,
+.screen-overlay.is-framed.is-crossfade {
+  transition: opacity 420ms ease;
+}
+
 .screen-overlay.is-wiping::after {
   content: '';
   position: absolute;
@@ -926,6 +931,15 @@
 @media (max-width: 400px) {
   .meta-block .meta-row {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) and (max-height: 540px) {
+  .flat-os-bezel {
+    inset: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
   }
 }
 

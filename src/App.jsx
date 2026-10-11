@@ -150,11 +150,20 @@ export default function App() {
     if (reduced || !threeD) {
       zoomRef.current = 1
       overlayOnRef.current = true
-      setOverlayOn(true)
       setOsMounted(true)
+      setOverlayOn(true)
       setStage('os')
       announce('HARSH.OS')
-      window.setTimeout(() => startButtonRef.current?.focus(), 40)
+      window.requestAnimationFrame(() => {
+        const el = overlayRef.current
+        if (!el) return
+        el.classList.add('is-crossfade')
+        el.style.opacity = '0'
+        window.requestAnimationFrame(() => {
+          el.style.opacity = '1'
+        })
+      })
+      window.setTimeout(() => startButtonRef.current?.focus(), TIMING.crossfadeMs)
       return
     }
     setStage('zooming')
@@ -184,11 +193,18 @@ export default function App() {
     cancelAnimationFrame(zoomRaf.current)
     announce('Zoomed out to monitor. Press any key to return.')
     if (reduced || !threeD) {
-      zoomRef.current = 0
-      overlayOnRef.current = false
-      setOverlayOn(false)
-      setStage('parked')
-      window.setTimeout(() => parkedRef.current?.focus(), 40)
+      const el = overlayRef.current
+      if (el) {
+        el.classList.add('is-crossfade')
+        el.style.opacity = '0'
+      }
+      window.setTimeout(() => {
+        zoomRef.current = 0
+        overlayOnRef.current = false
+        setOverlayOn(false)
+        setStage('parked')
+        window.setTimeout(() => parkedRef.current?.focus(), 40)
+      }, TIMING.crossfadeMs)
       return
     }
     setStage('zooming')
