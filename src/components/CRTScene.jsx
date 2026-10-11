@@ -16,7 +16,7 @@ const TV_SCALE = 1.55
 const TV_YAW = 0.18
 
 const START_CAM = { pos: [0.68, 0.48, 1.42], look: [0.0, 0.28, 0.02], fov: 30 }
-const END_CAM = { pos: [0.0, 0.34, 0.62], look: [0.0, 0.34, 0.05], fov: 26 }
+const END_CAM = { pos: [0.0, 0.34, 0.78], look: [0.0, 0.34, 0.05], fov: 26 }
 
 /** PerspectiveCamera.fov is vertical — widen slightly on tall frames. */
 function startCamForAspect(aspect) {
@@ -106,12 +106,15 @@ function GlassTracker({ screen, onRect }) {
       minY = Math.min(minY, y)
       maxY = Math.max(maxY, y)
     }
+    const visLeft = Math.max(0, minX)
+    const visRight = Math.min(size.width, maxX)
     onRectRef.current({
       left: minX,
       top: minY,
       width: maxX - minX,
       height: maxY - minY,
       widthPct: ((maxX - minX) / size.width) * 100,
+      visibleWidthPct: ((visRight - visLeft) / size.width) * 100,
     })
   })
 

@@ -37,15 +37,31 @@ function smoothstep(t) {
   return x * x * (3 - 2 * x)
 }
 
+function visibleGlassRect(rect) {
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+  const left = Math.max(0, rect.left)
+  const top = Math.max(0, rect.top)
+  const right = Math.min(vw, rect.left + rect.width)
+  const bottom = Math.min(vh, rect.top + rect.height)
+  return {
+    left,
+    top,
+    width: Math.max(1, right - left),
+    height: Math.max(1, bottom - top),
+  }
+}
+
 function applyOverlayRect(el, rect, zoom) {
   if (!el || !rect) return
   const u = smoothstep((zoom - 0.9) / 0.1)
+  const box = visibleGlassRect(rect)
   const vw = window.innerWidth
   const vh = window.innerHeight
-  el.style.left = `${rect.left * (1 - u)}px`
-  el.style.top = `${rect.top * (1 - u)}px`
-  el.style.width = `${rect.width + (vw - rect.width) * u}px`
-  el.style.height = `${rect.height + (vh - rect.height) * u}px`
+  el.style.left = `${box.left * (1 - u)}px`
+  el.style.top = `${box.top * (1 - u)}px`
+  el.style.width = `${box.width + (vw - box.width) * u}px`
+  el.style.height = `${box.height + (vh - box.height) * u}px`
   el.style.borderRadius = `${(16 * (1 - u)).toFixed(2)}% / ${(20 * (1 - u)).toFixed(2)}%`
   el.classList.toggle('is-mapped', u < 0.995)
   el.classList.toggle('is-full', u >= 0.995)
