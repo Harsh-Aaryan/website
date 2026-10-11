@@ -133,7 +133,6 @@ export default function OperatingSystem({
   return (
     <div
       className={`os-root ${prefersReducedMotion() ? 'reduce-motion' : ''}`}
-      id="os-main"
       aria-hidden={!interactive}
       style={{ pointerEvents: interactive ? 'auto' : 'none' }}
     >

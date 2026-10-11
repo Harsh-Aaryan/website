@@ -63,7 +63,7 @@ The desktop intro is a photoreal CRT on a dark desk in a night room. Models and 
 
 The landing monitor is Poly Haven **Television 02** by Benny Weimer (CC0) — a photoreal vintage CRT. Sketchfab has CC-BY computer CRTs but `/v3/models/{id}/download` returns 401 without a token.
 
-Mobile, `prefers-reduced-motion`, and no-WebGL still use the flat CRT fallback. The Three.js scene is lazy-loaded on the themed night-room background.
+Mobile and no-WebGL use the flat CRT fallback. `prefers-reduced-motion` still runs the boot intro on that fallback (or a motion-free 3D path with `?force3d=1`) — it skips dolly, flicker, and typing, not the intro itself. The Three.js scene is lazy-loaded on the themed night-room background.
 
 ## Layout
 

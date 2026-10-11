@@ -17,6 +17,23 @@ const TV_YAW = 0.18
 
 const START_CAM = { pos: [0.36, 0.41, 0.92], look: [0.0, 0.34, 0.1], fov: 28 }
 const END_CAM = { pos: [0.01, 0.395, 0.4], look: [0.0, 0.385, 0.175], fov: 24 }
+const REF_ASPECT = 16 / 9
+
+/** PerspectiveCamera.fov is vertical, so tall viewports crop the BIOS left column. */
+function startCamForAspect(aspect) {
+  const safe = Math.max(0.42, aspect)
+  let fov = START_CAM.fov
+  if (safe < REF_ASPECT) {
+    fov = Math.min(64, START_CAM.fov * (REF_ASPECT / safe))
+  }
+  const pull = safe < 0.8 ? 0.3 : safe < 1 ? 0.16 : safe < 1.35 ? 0.08 : 0
+  const x = safe < 1 ? 0.14 : START_CAM.pos[0]
+  return {
+    pos: [x, START_CAM.pos[1], START_CAM.pos[2] + pull],
+    look: START_CAM.look,
+    fov,
+  }
+}
 
 function lerp(a, b, t) {
   return a + (b - a) * t
@@ -39,14 +56,18 @@ function curveGeometry(width, height, bend = 0.028) {
 }
 
 function CameraRig({ zoomRef }) {
-  const { camera } = useThree()
+  const { camera, size } = useThree()
+  const start = useMemo(
+    () => startCamForAspect(size.width / Math.max(1, size.height)),
+    [size.height, size.width]
+  )
 
   useFrame(() => {
     const t = zoomRef?.current ?? 0
-    const pos = lerp3(START_CAM.pos, END_CAM.pos, t)
-    const look = lerp3(START_CAM.look, END_CAM.look, t)
+    const pos = lerp3(start.pos, END_CAM.pos, t)
+    const look = lerp3(start.look, END_CAM.look, t)
     camera.position.set(pos[0], pos[1], pos[2])
-    camera.fov = lerp(START_CAM.fov, END_CAM.fov, t)
+    camera.fov = lerp(start.fov, END_CAM.fov, t)
     camera.lookAt(look[0], look[1], look[2])
     camera.updateProjectionMatrix()
   })
