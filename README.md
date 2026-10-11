@@ -51,17 +51,17 @@ Returning visitors who finish or skip the intro are sent straight to the desktop
 
 ## 3D landing assets
 
-The desktop intro is a photoreal CRT on a dark desk in a night room. Models and textures are **CC0 1.0** from [Poly Haven](https://polyhaven.com/) and [Polyy.AI](https://polyyai.itch.io/3d-retro-tech-pack). Full notes: `public/assets/scene/ATTRIBUTION.txt`. Credits also appear in CREDITS.TXT on the HARSH.OS desktop.
+The desktop intro is a photoreal CRT on a dark desk in a night room. Models and textures are **CC0 1.0** from [Poly Haven](https://polyhaven.com/). Full notes: `public/assets/scene/ATTRIBUTION.txt`. Credits also appear in CREDITS.TXT on the HARSH.OS desktop.
 
 | Asset | Author | Source | License | In repo |
 | --- | --- | --- | --- | --- |
-| Beige CRT monitor + keyboard | Polyy.AI | https://polyyai.itch.io/3d-retro-tech-pack | CC0 1.0 | `public/assets/scene/crt_monitor_beige.glb` (~175KB meshopt), `home_computer_keyboard.glb` (~323KB, lazy after boot) |
-| Unfinished Office Night (512px env) | Sergej Majboroda | https://polyhaven.com/a/unfinished_office_night | CC0 1.0 | `public/assets/scene/unfinished_office_night_512.jpg` |
+| Television 02 | Benny Weimer | https://polyhaven.com/a/television_02 | CC0 1.0 | `public/assets/scene/television_02.glb` (~154KB meshopt + WebP ≤1K) |
+| Unfinished Office Night (1K env) | Sergej Majboroda | https://polyhaven.com/a/unfinished_office_night | CC0 1.0 | `public/assets/scene/unfinished_office_night_1k.jpg` |
 | Modern Buildings Night | Greg Zaal | https://polyhaven.com/a/modern_buildings_night | CC0 1.0 | `public/assets/scene/modern_buildings_night.webp` |
 | Dark Wood | Dario Barresi, Dimitrios Savva, Rico Cilliers | https://polyhaven.com/a/dark_wood | CC0 1.0 | `public/assets/scene/dark_wood_*_1k.webp` |
 | Painted Plaster Wall | Amal Kumar | https://polyhaven.com/a/painted_plaster_wall | CC0 1.0 | `public/assets/scene/painted_plaster_wall_*_1k.webp` |
 
-The landing monitor is a beige desktop CRT with a pedestal (IBM 5151 / Apple Monitor III silhouette) plus a vintage slab keyboard, both CC0 from Polyy.AI’s 3D Retro Tech Pack. Poly Haven has no computer-monitor model — only CRT televisions. Sketchfab has CC-BY computer CRTs (fizyman, Rafael Rodrigues, Dio Pieretti) but `/v3/models/{id}/download` returns 401 without an API token.
+The landing monitor is Poly Haven **Television 02** by Benny Weimer (CC0) — a photoreal vintage CRT. Sketchfab has CC-BY computer CRTs but `/v3/models/{id}/download` returns 401 without a token.
 
 Mobile, `prefers-reduced-motion`, and no-WebGL still use the flat CRT fallback. The Three.js scene is lazy-loaded on the themed night-room background.
 
@@ -75,5 +75,5 @@ src/components/CRTScene.jsx   lazy-loaded Three.js desk + monitor
 src/components/FlatCRT.jsx    2D bezel fallback / mobile
 src/components/OperatingSystem.jsx
 src/components/sections/      About, Projects, Skills, Resume, Contact
-src/components/CreditsSection.jsx  CREDITS.TXT (Poly Haven / Polyy.AI)
+src/components/CreditsSection.jsx  CREDITS.TXT (Poly Haven)
 ```

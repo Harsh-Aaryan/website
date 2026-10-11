@@ -1,22 +1,16 @@
 3D landing assets (all CC0 1.0, public domain — https://creativecommons.org/publicdomain/zero/1.0/)
 
-1. Beige CRT computer monitor + home-computer keyboard
-   Author: Polyy.AI
-   Source: https://polyyai.itch.io/3d-retro-tech-pack
+1. Television 02 (vintage CRT)
+   Author: Benny Weimer
+   Source: https://polyhaven.com/a/television_02
    License: CC0 1.0
-   Files: crt_monitor_beige.glb, home_computer_keyboard.glb
-         (meshopt + WebP, textures ≤512px; ~175KB + ~323KB)
-   Note: From the 3D Retro Tech Pack. IBM 5151 / Apple Monitor III style
-         beige desktop CRT with pedestal, plus a vintage slab keyboard.
-         Poly Haven has no computer-monitor model (only CRT televisions).
-         Sketchfab CC-BY computer CRTs exist but /v3/models/{id}/download
-         returns 401 without an API token.
+   File: television_02.glb (meshopt + WebP textures ≤1K)
 
 2. Unfinished Office Night HDRI
    Author: Sergej Majboroda
    Source: https://polyhaven.com/a/unfinished_office_night
    License: CC0 1.0
-   File: unfinished_office_night_512.jpg (downsampled equirect env)
+   File: unfinished_office_night_1k.jpg (1K equirect JPEG env)
 
 3. Modern Buildings Night
    Author: Greg Zaal

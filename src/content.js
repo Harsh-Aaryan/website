@@ -153,18 +153,18 @@ export const BOOT_LINES = [
 
 export const SCENE_CREDITS = [
   {
-    title: 'Beige CRT monitor + home-computer keyboard',
-    author: 'Polyy.AI',
-    source: 'https://polyyai.itch.io/3d-retro-tech-pack',
+    title: 'Television 02',
+    author: 'Benny Weimer',
+    source: 'https://polyhaven.com/a/television_02',
     license: 'CC0 1.0',
-    note: 'Vintage computer CRT and keyboard from the 3D Retro Tech Pack',
+    note: 'Photoreal vintage CRT (meshopt + WebP ≤1K)',
   },
   {
     title: 'Unfinished Office Night HDRI',
     author: 'Sergej Majboroda',
     source: 'https://polyhaven.com/a/unfinished_office_night',
     license: 'CC0 1.0',
-    note: 'Night office reflections (512px JPEG env)',
+    note: 'Night office reflections (1K JPEG env)',
   },
   {
     title: 'Modern Buildings Night',

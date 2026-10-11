@@ -8,24 +8,15 @@ import {
   useTexture,
 } from '@react-three/drei'
 import { Bloom, DepthOfField, EffectComposer, Noise, Vignette } from '@react-three/postprocessing'
-import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { useBootTexture } from './ScreenBoot'
 
-const CRT_SCALE = 0.5
-const CRT_LIFT = 0.502 * CRT_SCALE
-const CRT_YAW = 0.16
+const TV_SCALE = 1.55
+const TV_YAW = 0.18
 
-const START_CAM = { pos: [0.5, 0.42, 1.2], look: [-0.14, 0.24, 0.06], fov: 32 }
-const END_CAM = { pos: [0.016, 0.326, 0.62], look: [0.0, 0.32, 0.25], fov: 24 }
-
-// Beige CRT local space (origin at bounding-box center, Y-up, screen on +Z).
-// z sits just in front of the model's own black glass so the BIOS is visible.
-const SCREEN = {
-  position: [0.0, 0.146, 0.496],
-  size: [0.518, 0.392],
-  bend: 0.038,
-}
+const START_CAM = { pos: [0.68, 0.48, 1.42], look: [0.0, 0.28, 0.02], fov: 30 }
+const END_CAM = { pos: [0.01, 0.395, 0.4], look: [0.0, 0.385, 0.175], fov: 24 }
 
 function lerp(a, b, t) {
   return a + (b - a) * t
@@ -35,61 +26,16 @@ function lerp3(a, b, t) {
   return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)]
 }
 
-function curveGeometry(width, height, bend) {
-  const geo = new THREE.PlaneGeometry(width, height, 56, 40)
+function curveGeometry(width, height, bend = 0.028) {
+  const geo = new THREE.PlaneGeometry(width, height, 40, 30)
   const pos = geo.attributes.position
   for (let i = 0; i < pos.count; i += 1) {
     const x = pos.getX(i) / width
     const y = pos.getY(i) / height
-    pos.setZ(i, bend * (1 - (x * x * 0.92 + y * y * 0.68)))
+    pos.setZ(i, -bend * (x * x + y * y * 0.55))
   }
   geo.computeVertexNormals()
   return geo
-}
-
-function makeTubeMask() {
-  const size = 512
-  const canvas = document.createElement('canvas')
-  canvas.width = size
-  canvas.height = size
-  const ctx = canvas.getContext('2d')
-  const img = ctx.createImageData(size, size)
-  const n = 3.45
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      const u = (x / (size - 1)) * 2 - 1
-      const v = (y / (size - 1)) * 2 - 1
-      const d = (Math.abs(u) ** n + Math.abs(v) ** n) ** (1 / n)
-      const edge = THREE.MathUtils.smoothstep(d, 0.88, 1.05)
-      const a = Math.round((1 - edge) * 255)
-      const i = (y * size + x) * 4
-      img.data[i] = img.data[i + 1] = img.data[i + 2] = a
-      img.data[i + 3] = 255
-    }
-  }
-  ctx.putImageData(img, 0, 0)
-  const tex = new THREE.CanvasTexture(canvas)
-  tex.colorSpace = THREE.NoColorSpace
-  tex.flipY = true
-  return tex
-}
-
-function makeGlassSheen() {
-  const canvas = document.createElement('canvas')
-  canvas.width = 256
-  canvas.height = 256
-  const ctx = canvas.getContext('2d')
-  ctx.clearRect(0, 0, 256, 256)
-  const streak = ctx.createLinearGradient(20, 0, 200, 256)
-  streak.addColorStop(0, 'rgba(255, 186, 80, 0)')
-  streak.addColorStop(0.38, 'rgba(255, 176, 0, 0.08)')
-  streak.addColorStop(0.5, 'rgba(255, 186, 80, 0)')
-  streak.addColorStop(1, 'rgba(255, 186, 80, 0)')
-  ctx.fillStyle = streak
-  ctx.fillRect(0, 0, 256, 256)
-  const tex = new THREE.CanvasTexture(canvas)
-  tex.colorSpace = THREE.SRGBColorSpace
-  return tex
 }
 
 function CameraRig({ zoomRef }) {
@@ -109,97 +55,99 @@ function CameraRig({ zoomRef }) {
 }
 
 function NightEnv() {
-  const tex = useTexture('/assets/scene/unfinished_office_night_512.jpg')
+  const tex = useTexture('/assets/scene/unfinished_office_night_1k.jpg')
   useEffect(() => {
     tex.mapping = THREE.EquirectangularReflectionMapping
     tex.colorSpace = THREE.SRGBColorSpace
   }, [tex])
-  return <Environment map={tex} environmentIntensity={0.06} background={false} />
+  return <Environment map={tex} environmentIntensity={0.3} background={false} />
 }
 
 function VintageCRT({ bootMap }) {
-  const { scene } = useGLTF('/assets/scene/crt_monitor_beige.glb', false, true)
-  const mask = useMemo(() => makeTubeMask(), [])
-  const sheen = useMemo(() => makeGlassSheen(), [])
-  const cloned = useMemo(() => scene.clone(true), [scene])
+  const { scene } = useGLTF('/assets/scene/television_02.glb', false, true)
+  const clone = useMemo(() => scene.clone(true), [scene])
+  const [screen, setScreen] = useState({
+    position: [0, 0.29, 0.145],
+    size: [0.312, 0.226],
+  })
 
   useLayoutEffect(() => {
     bootMap.wrapS = bootMap.wrapT = THREE.ClampToEdgeWrapping
-    bootMap.repeat.set(1.2, 1.14)
-    bootMap.offset.set(-0.1, -0.07)
+    bootMap.repeat.set(1.16, 1.1)
+    bootMap.offset.set(-0.08, -0.05)
     bootMap.needsUpdate = true
   }, [bootMap])
 
   useLayoutEffect(() => {
-    cloned.traverse((obj) => {
-      if (!obj.isMesh) return
+    clone.traverse((obj) => {
+      if (!obj.isMesh || !obj.material) return
       obj.castShadow = true
       obj.receiveShadow = true
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material]
       mats.forEach((mat) => {
-        mat.envMapIntensity = 0.06
-        mat.roughness = Math.min((mat.roughness ?? 0.5) + 0.28, 0.94)
-        mat.metalness = 0.02
-        if (mat.clearcoat != null) mat.clearcoat = 0
-        if (mat.color) mat.color.multiply(new THREE.Color('#d4be94'))
+        mat.envMapIntensity = 0.7
+        mat.roughness = Math.min((mat.roughness ?? 0.42) + 0.1, 0.68)
+        if (mat.color) mat.color.multiply(new THREE.Color(1.05, 0.97, 0.86))
       })
     })
-  }, [cloned])
+    const box = new THREE.Box3().setFromObject(clone)
+    const size = new THREE.Vector3()
+    const center = new THREE.Vector3()
+    box.getSize(size)
+    box.getCenter(center)
+    setScreen({
+      position: [center.x, center.y + size.y * 0.145, box.max.z + 0.024],
+      size: [size.x * 0.78, size.y * 0.55],
+    })
+  }, [clone])
 
-  const tubeGeo = useMemo(
-    () => curveGeometry(SCREEN.size[0] * 0.9, SCREEN.size[1] * 0.92, SCREEN.bend),
-    []
-  )
   const glassGeo = useMemo(
-    () => curveGeometry(SCREEN.size[0], SCREEN.size[1], SCREEN.bend + 0.008),
-    []
+    () => curveGeometry(screen.size[0], screen.size[1], 0.012),
+    [screen.size]
   )
-  const wellGeo = useMemo(
-    () => curveGeometry(SCREEN.size[0] * 1.04, SCREEN.size[1] * 1.04, SCREEN.bend * 0.4),
-    []
+  const tubeGeo = useMemo(
+    () => curveGeometry(screen.size[0] * 0.96, screen.size[1] * 0.96, 0.01),
+    [screen.size]
   )
 
   return (
-    <group scale={CRT_SCALE} position={[0, CRT_LIFT, 0]} rotation={[0, CRT_YAW, 0]}>
-      <primitive object={cloned} />
+    <group scale={TV_SCALE} position={[0, 0, 0]} rotation={[0, TV_YAW, 0]}>
+      <primitive object={clone} />
       <mesh
-        geometry={wellGeo}
-        position={[SCREEN.position[0], SCREEN.position[1], SCREEN.position[2] - 0.018]}
+        geometry={tubeGeo}
+        position={[screen.position[0], screen.position[1], screen.position[2] - 0.004]}
       >
         <meshBasicMaterial color="#070503" />
       </mesh>
-      <mesh
-        geometry={tubeGeo}
-        position={SCREEN.position}
-        renderOrder={2}
-      >
+      <mesh geometry={tubeGeo} position={screen.position} renderOrder={2}>
         <meshStandardMaterial
           map={bootMap}
           emissiveMap={bootMap}
           emissive={new THREE.Color('#ffb000')}
-          emissiveIntensity={1.15}
-          alphaMap={mask}
-          transparent
-          depthWrite
-          toneMapped={false}
-          roughness={0.55}
+          emissiveIntensity={1.05}
+          roughness={0.42}
           metalness={0}
+          toneMapped={false}
           polygonOffset
-          polygonOffsetFactor={-2}
+          polygonOffsetFactor={-1}
+          polygonOffsetUnits={-1}
         />
       </mesh>
       <mesh
         geometry={glassGeo}
-        position={[SCREEN.position[0], SCREEN.position[1], SCREEN.position[2] + 0.01]}
+        position={[screen.position[0], screen.position[1], screen.position[2] + 0.008]}
         renderOrder={3}
       >
-        <meshBasicMaterial
-          map={sheen}
-          alphaMap={mask}
+        <meshPhysicalMaterial
+          color="#d8e4ee"
+          roughness={0.08}
+          metalness={0.04}
           transparent
-          opacity={0.06}
+          opacity={0.11}
+          clearcoat={0.85}
+          clearcoatRoughness={0.22}
+          envMapIntensity={1.35}
           depthWrite={false}
-          toneMapped={false}
         />
       </mesh>
     </group>
@@ -223,8 +171,8 @@ function Desk() {
 
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0.22]} receiveShadow>
-        <planeGeometry args={[3.6, 2.2]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0.12]} receiveShadow>
+        <planeGeometry args={[4.2, 2.4]} />
         <meshStandardMaterial
           map={albedo}
           normalMap={normal}
@@ -232,10 +180,10 @@ function Desk() {
           color="#2a160e"
           roughness={0.78}
           metalness={0.02}
-          envMapIntensity={0.05}
+          envMapIntensity={0.18}
         />
       </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.014, 0.22]} receiveShadow>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.014, 0.12]} receiveShadow>
         <planeGeometry args={[9, 7]} />
         <meshStandardMaterial color="#100c09" roughness={0.97} envMapIntensity={0.04} />
       </mesh>
@@ -322,39 +270,6 @@ function NightRoom() {
   )
 }
 
-function DeferredKeyboard({ enabled }) {
-  if (!enabled) return null
-  return (
-    <Suspense fallback={null}>
-      <Keyboard />
-    </Suspense>
-  )
-}
-
-function Keyboard() {
-  const { scene } = useGLTF('/assets/scene/home_computer_keyboard.glb', false, true)
-  const cloned = useMemo(() => scene.clone(true), [scene])
-  useLayoutEffect(() => {
-    cloned.traverse((obj) => {
-      if (!obj.isMesh) return
-      obj.castShadow = true
-      obj.receiveShadow = true
-      const mats = Array.isArray(obj.material) ? obj.material : [obj.material]
-      mats.forEach((mat) => {
-        mat.envMapIntensity = 0.28
-        mat.roughness = Math.min((mat.roughness ?? 0.5) + 0.1, 0.8)
-        if (mat.color) mat.color.multiply(new THREE.Color('#eee0c4'))
-      })
-    })
-  }, [cloned])
-  const scale = 0.4
-  return (
-    <group scale={scale} position={[0.07, 0.171 * scale, 0.5]} rotation={[0, CRT_YAW, 0]}>
-      <primitive object={cloned} />
-    </group>
-  )
-}
-
 function Dust() {
   const ref = useRef()
   const positions = useMemo(() => {
@@ -434,7 +349,7 @@ function WindowWash() {
   )
 }
 
-function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, keyboardOn }) {
+function Scene({ zoomRef, bootRunning, reducedMotion, enableDof }) {
   const bootMap = useBootTexture({ running: bootRunning, reduced: reducedMotion })
   const { scene } = useThree()
 
@@ -472,17 +387,16 @@ function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, keyboardOn }) {
       <NightRoom />
       <Desk />
       <VintageCRT bootMap={bootMap} />
-      <DeferredKeyboard enabled={keyboardOn} />
-      <ContactShadows position={[0, 0.001, 0.16]} opacity={0.7} scale={3.6} blur={2.2} far={1.2} color="#000" />
+      <ContactShadows position={[0, 0.001, 0.08]} opacity={0.55} scale={3.6} blur={2.2} far={1.2} color="#000" />
       <Dust />
       <CameraRig zoomRef={zoomRef} />
       <EffectComposer disableNormalPass multisampling={0}>
         <Bloom intensity={0.12} luminanceThreshold={0.88} mipmapBlur />
         {enableDof && (
           <DepthOfField
-            focusDistance={0.016}
+            focusDistance={0.014}
             focalLength={0.012}
-            bokehScale={1.15}
+            bokehScale={1.1}
           />
         )}
         <Noise opacity={0.018} />
@@ -511,7 +425,7 @@ export default function CRTScene({
           alpha: false,
           powerPreference: 'high-performance',
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 0.92,
+          toneMappingExposure: 0.96,
           outputColorSpace: THREE.SRGBColorSpace,
         }}
         camera={{ position: START_CAM.pos, fov: START_CAM.fov }}
@@ -522,7 +436,6 @@ export default function CRTScene({
           bootRunning={bootRunning}
           reducedMotion={reducedMotion}
           enableDof={enableDof}
-          keyboardOn={revealed}
         />
       </Canvas>
     </div>
