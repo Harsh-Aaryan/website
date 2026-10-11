@@ -161,7 +161,7 @@ export default function App() {
     persistSkip()
     pendingLand.current = true
     goStage('os')
-    window.setTimeout(() => landOnOs(), 0)
+    landOnOs()
   }, [goStage, landOnOs])
 
   useEffect(() => {
