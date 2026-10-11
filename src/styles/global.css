@@ -5,48 +5,103 @@
 }
 
 :root {
-  /* Amber phosphor palette */
-  --screen-bg: #0E0A05;
-  --text-primary: #FFB000;
-  --text-dim: #B37A00;
-  --text-muted: #5C3F0A;
-  --accent-link: #FFD27A;
-  --glow-amber: rgba(255, 176, 0, 0.35);
-  
-  /* Room scene colors */
-  --room-dark: #07090C;
-  --room-light: #121418;
-  
-  /* Green alternative palette */
-  --green-primary: #33FF66;
-  --green-dim: #1FA344;
-  --green-muted: #0B4A1E;
-  --green-bg: #050A06;
-  
-  /* Shadow and effects */
-  --shadow-color: #5C3F0A;
+  --screen-bg: #0e0a05;
+  --text-primary: #ffb000;
+  --text-dim: #b37a00;
+  --muted: #5c3f0a;
+  --accent: #ffd27a;
   --glow: rgba(255, 176, 0, 0.35);
+  --scanline: rgba(255, 176, 0, 0.07);
+  --shadow-color: #5c3f0a;
+  --room-dark: #07090c;
+  --room-light: #121418;
+  --taskbar-h: 36px;
+  --font-ui: 'VT323', monospace;
+  --font-body: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
 }
 
 body {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.6;
   background: var(--room-dark);
   color: var(--text-primary);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--text-primary);
+  color: var(--screen-bg);
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+a:focus-visible,
+button:focus-visible,
+[tabindex='0']:focus-visible {
+  outline: 1px dotted var(--text-primary);
+  outline-offset: 2px;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+h1,
+h2,
+h3,
+.window-title,
+.boot-line,
+.taskbar,
+.desktop-icon-label,
+.start-button {
+  font-family: var(--font-ui);
   font-weight: 400;
-  font-size: 16px;
-  line-height: 1.6;
 }
 
-#root {
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
+h1,
+h2,
+h3 {
+  letter-spacing: 0.04em;
+  text-shadow:
+    -0.5px 0 var(--text-dim),
+    0.5px 0 var(--accent),
+    0 0 2px var(--glow),
+    0 0 8px var(--glow);
 }
 
-.pixel-font {
-  font-family: 'VT323', monospace;
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -40px;
+  z-index: 10000;
+  padding: 6px 10px;
+  background: var(--text-primary);
+  color: var(--screen-bg);
+}
+
+.skip-link:focus {
+  top: 8px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -56,5 +111,12 @@ body {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .scanlines,
+  .crt-flicker,
+  .vignette {
+    animation: none !important;
   }
 }

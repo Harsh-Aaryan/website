@@ -1,92 +1,86 @@
-import React, { useState, useEffect } from 'react'
-import './Taskbar.css'
+import { SECTIONS } from '../content'
+import PixelIcon from './PixelIcon'
 
-const Taskbar = ({ openWindows, activeWindow, onWindowClick, onSectionOpen, onColorToggle, colorScheme }) => {
-  const [time, setTime] = useState(new Date())
-  const [isMuted, setIsMuted] = useState(true)
-
-  useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000)
-    return () => clearInterval(timer)
-  }, [])
-
-  const formatTime = (date) => {
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: true 
-    })
-  }
-
-  const sections = [
-    { id: 'about', label: 'ABOUT.TXT' },
-    { id: 'projects', label: 'PROJECTS/' },
-    { id: 'skills', label: 'SKILLS.TXT' },
-    { id: 'contact', label: 'CONTACT.LNK' },
-    { id: 'resume', label: 'RESUME.PDF' }
-  ]
-
+export default function Taskbar({
+  windows,
+  activeId,
+  menuOpen,
+  onToggleMenu,
+  onOpen,
+  onFocus,
+  themeId,
+  muted,
+  onToggleTheme,
+  onToggleMute,
+  clock,
+}) {
   return (
-    <div className="taskbar">
-      <div className="taskbar-start">
-        <button 
-          className="start-button"
-          onClick={() => {}}
-          aria-label="Start menu"
+    <footer className="taskbar">
+      <div className="start-wrap">
+        <button
+          type="button"
+          className={`start-button ${menuOpen ? 'is-open' : ''}`}
+          aria-expanded={menuOpen}
+          aria-haspopup="menu"
+          onClick={onToggleMenu}
         >
           HARSH.OS
         </button>
+        {menuOpen && (
+          <div className="start-menu" role="menu">
+            {SECTIONS.map((section) => (
+              <button
+                key={section.id}
+                type="button"
+                role="menuitem"
+                onClick={() => onOpen(section.id)}
+              >
+                <PixelIcon type={section.icon} size={16} />
+                {section.title}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="taskbar-tabs">
-        {openWindows.map(window => (
+      <div className="taskbar-tabs" role="tablist" aria-label="Open windows">
+        {windows.map((win) => (
           <button
-            key={window.id}
-            className={`taskbar-tab ${activeWindow === window.id ? 'active' : ''}`}
-            onClick={() => onWindowClick(window.id)}
+            key={win.id}
+            type="button"
+            role="tab"
+            aria-selected={activeId === win.id}
+            className={`taskbar-tab ${activeId === win.id ? 'is-active' : ''}`}
+            onClick={() => onFocus(win.id)}
           >
-            {window.title}
+            {win.title}
           </button>
         ))}
       </div>
 
       <div className="taskbar-tray">
         <button
-          className="taskbar-icon"
-          onClick={onColorToggle}
-          aria-label={`Switch to ${colorScheme === 'amber' ? 'green' : 'amber'} theme`}
-          title={`Switch to ${colorScheme === 'amber' ? 'green' : 'amber'}`}
+          type="button"
+          className="tray-btn"
+          onClick={onToggleTheme}
+          aria-label={`Theme ${themeId}. Switch phosphor.`}
+          title="Toggle amber/green phosphor"
         >
-          {colorScheme === 'amber' ? 'A' : 'G'}
+          {themeId === 'amber' ? 'AMB' : 'GRN'}
         </button>
         <button
-          className="taskbar-icon"
-          onClick={() => setIsMuted(!isMuted)}
-          aria-label={isMuted ? 'Unmute' : 'Mute'}
-          title={isMuted ? 'Unmute' : 'Mute'}
+          type="button"
+          className="tray-btn"
+          onClick={onToggleMute}
+          aria-pressed={!muted}
+          aria-label={muted ? 'Unmute CRT hum' : 'Mute CRT hum'}
         >
-          {isMuted ? '🔇' : '🔊'}
+          {muted ? 'HUM:OFF' : 'HUM:ON'}
         </button>
-        <div className="taskbar-clock">
-          {formatTime(time)}
-        </div>
+        <time className="taskbar-clock" dateTime={clock.iso}>
+          {clock.label}
+        </time>
       </div>
-
-      <div className="desktop-icons">
-        {sections.map(section => (
-          <button
-            key={section.id}
-            className="desktop-icon"
-            onClick={() => onSectionOpen(section.id)}
-            onDoubleClick={() => onSectionOpen(section.id)}
-          >
-            <div className="icon-image">[{section.id === 'resume' ? '📄' : section.id === 'projects' ? '📁' : '📝'}]</div>
-            <div className="icon-label">{section.label}</div>
-          </button>
-        ))}
-      </div>
-    </div>
+    </footer>
   )
 }
-
-export default Taskbar
