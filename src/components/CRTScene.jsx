@@ -125,8 +125,8 @@ function VintageCRT({ bootMap }) {
 
   useLayoutEffect(() => {
     bootMap.wrapS = bootMap.wrapT = THREE.ClampToEdgeWrapping
-    bootMap.repeat.set(1.12, 1.1)
-    bootMap.offset.set(-0.06, -0.05)
+    bootMap.repeat.set(1.2, 1.14)
+    bootMap.offset.set(-0.1, -0.07)
     bootMap.needsUpdate = true
   }, [bootMap])
 
@@ -147,7 +147,7 @@ function VintageCRT({ bootMap }) {
   }, [cloned])
 
   const tubeGeo = useMemo(
-    () => curveGeometry(SCREEN.size[0] * 0.97, SCREEN.size[1] * 0.97, SCREEN.bend),
+    () => curveGeometry(SCREEN.size[0] * 0.9, SCREEN.size[1] * 0.92, SCREEN.bend),
     []
   )
   const glassGeo = useMemo(
