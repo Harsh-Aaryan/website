@@ -103,8 +103,10 @@ export function hasWebGL() {
 }
 
 export function shouldUse3D() {
+  const params = new URLSearchParams(window.location.search)
+  if (params.get('flat') === '1') return false
+  if (params.get('force3d') === '1') return hasWebGL()
   if (prefersReducedMotion()) return false
   if (isMobileViewport()) return false
-  if (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2) return false
   return hasWebGL()
 }

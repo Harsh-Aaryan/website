@@ -16,6 +16,7 @@ function lerp3(a, b, t) {
 
 function CameraRig({ zoom, screenRef, onScreenRect }) {
   const { camera, size } = useThree()
+  const lastRect = useRef(null)
 
   useFrame(() => {
     const t = zoom
@@ -44,12 +45,23 @@ function CameraRig({ zoom, screenRef, onScreenRect }) {
     })
     const xs = corners.map((p) => p.x)
     const ys = corners.map((p) => p.y)
-    onScreenRect({
+    const next = {
       left: Math.min(...xs),
       top: Math.min(...ys),
       width: Math.max(...xs) - Math.min(...xs),
       height: Math.max(...ys) - Math.min(...ys),
-    })
+    }
+    const prev = lastRect.current
+    if (
+      !prev ||
+      Math.abs(prev.left - next.left) > 0.75 ||
+      Math.abs(prev.top - next.top) > 0.75 ||
+      Math.abs(prev.width - next.width) > 0.75 ||
+      Math.abs(prev.height - next.height) > 0.75
+    ) {
+      lastRect.current = next
+      onScreenRect(next)
+    }
   })
 
   return null
@@ -175,7 +187,6 @@ function Scene({ zoom, onScreenRect, onReady }) {
         position={[-3.2, 2.4, 1.6]}
         intensity={0.55}
         color={ROOM.coolKey}
-        castShadow
       />
       <pointLight position={[0, 0.7, 0.9]} intensity={2.1} color="#ffb000" distance={4.2} decay={2} />
       <spotLight
@@ -185,7 +196,7 @@ function Scene({ zoom, onScreenRect, onReady }) {
         intensity={0.35}
         color={ROOM.coolKey}
       />
-      <mesh position={[0, -0.2, -2.4]} receiveShadow>
+      <mesh position={[0, -0.2, -2.4]}>
         <planeGeometry args={[18, 8]} />
         <meshStandardMaterial color={ROOM.light} />
       </mesh>
@@ -201,8 +212,7 @@ export default function CRTScene({ zoom, onScreenRect, onReady }) {
   return (
     <div className="scene-layer scene-canvas">
       <Canvas
-        dpr={[1, 1.5]}
-        shadows
+        dpr={[1, 1.35]}
         gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
         camera={{ position: START_CAM.pos, fov: START_CAM.fov }}
       >

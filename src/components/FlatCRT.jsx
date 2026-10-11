@@ -5,6 +5,8 @@ export default function FlatCRT({ zoom, stage, children }) {
   return (
     <div className="flat-room scene-layer" aria-hidden={isOs}>
       <div className="flat-desk" />
+      <div className="crt-stand" />
+      <div className="crt-base" />
       <div className="flat-keyboard" />
       <div
         className={`crt-shell ${stage === 'zooming' ? 'is-zooming' : ''} ${isOs ? 'is-os' : ''}`}

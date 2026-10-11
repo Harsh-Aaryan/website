@@ -31,7 +31,7 @@ export default function OperatingSystem({
   onToggleMute,
 }) {
   const [windows, setWindows] = useState(() => [
-    { id: 'about', title: 'ABOUT.TXT', x: 140, y: 28, z: 2 },
+    { id: 'about', title: 'ABOUT.TXT', x: 128, y: 20, z: 2 },
   ])
   const [activeId, setActiveId] = useState('about')
   const [selectedIcon, setSelectedIcon] = useState('about')
