@@ -101,6 +101,7 @@ export default function App() {
   const zoomRaf = useRef(0)
   const zoomLock = useRef(false)
   const welcomed = useRef(false)
+  const pendingLand = useRef(false)
   const stageRef = useRef(stage)
   const startButtonRef = useRef(null)
   const parkedRef = useRef(null)
@@ -142,14 +143,14 @@ export default function App() {
 
   const landOnOs = useCallback(() => {
     welcomed.current = true
+    pendingLand.current = false
     announce('HARSH.OS')
-    window.setTimeout(() => startButtonRef.current?.focus(), 40)
+    const focus = () => startButtonRef.current?.focus()
+    window.requestAnimationFrame(() => {
+      focus()
+      window.setTimeout(focus, 80)
+    })
   }, [announce])
-
-  const welcomeOs = useCallback(() => {
-    if (welcomed.current) return
-    landOnOs()
-  }, [landOnOs])
 
   const finishToOs = useCallback(() => {
     zoomLock.current = false
@@ -158,13 +159,15 @@ export default function App() {
     setOverlayOn(true)
     setOsMounted(true)
     persistSkip()
+    pendingLand.current = true
     goStage('os')
     landOnOs()
   }, [goStage, landOnOs])
 
   useEffect(() => {
-    if (stage === 'os') welcomeOs()
-  }, [stage, welcomeOs])
+    if (stage !== 'os') return
+    if (pendingLand.current || !welcomed.current) landOnOs()
+  }, [landOnOs, stage])
 
   const startZoom = useCallback(() => {
     const nowStage = stageRef.current
@@ -177,6 +180,7 @@ export default function App() {
       overlayOnRef.current = true
       setOsMounted(true)
       setOverlayOn(true)
+      pendingLand.current = true
       goStage('os')
       landOnOs()
       window.requestAnimationFrame(() => {
@@ -306,6 +310,7 @@ export default function App() {
     overlayOnRef.current = true
     setOverlayOn(true)
     setOsMounted(true)
+    pendingLand.current = true
     goStage('os')
     landOnOs()
   }
