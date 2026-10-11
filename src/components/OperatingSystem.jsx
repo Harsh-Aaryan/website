@@ -144,7 +144,7 @@ export default function OperatingSystem({
         return
       }
       const focused = document.activeElement
-      if (focused?.closest?.('.window') || focused?.closest?.('.start-menu')) return
+      if (focused?.closest?.('.window') || focused?.closest?.('.start-menu') || focused?.closest?.('.taskbar')) return
       if (onZoomOut) {
         event.preventDefault()
         onZoomOut()

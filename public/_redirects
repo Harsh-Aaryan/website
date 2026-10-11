@@ -1,0 +1,6 @@
+# Missing hashed assets must 404 as 404.html (not the SPA).
+# Existing files still win because this rule is not forced.
+/assets/*  /404.html  404
+
+# SPA fallback
+/*  /index.html  200

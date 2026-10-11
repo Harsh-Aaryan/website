@@ -296,6 +296,16 @@
   overflow: hidden;
 }
 
+.boot-screen.is-parked {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  font-size: 13px;
+  line-height: 1.2;
+  padding: 8px 10px;
+  overflow: auto;
+}
+
 .boot-cursor {
   display: inline-block;
   width: 12px;
@@ -897,8 +907,9 @@
   }
 
   .boot-screen {
-    font-size: 15px;
-    padding: 10px 12px;
+    font-size: 13px;
+    line-height: 1.2;
+    padding: 8px 10px;
     overflow: auto;
   }
 
@@ -931,6 +942,8 @@
 @media (max-width: 400px) {
   .meta-block .meta-row {
     grid-template-columns: 1fr;
+    gap: 4px;
+    margin-bottom: 8px;
   }
 }
 

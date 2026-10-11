@@ -343,14 +343,14 @@ export default function App() {
       )}
       {stage === 'loading' && threeD && <LoadingScreen progress={loadProgress} compact />}
 
-      {!threeD && (stage === 'loading' || stage === 'boot' || stage === 'zooming' || stage === 'parked') && (
-        <FlatCRT stage={stage === 'parked' ? 'boot' : stage}>
+      {!threeD && (stage === 'loading' || stage === 'boot' || stage === 'zooming') && (
+        <FlatCRT stage={stage}>
           {stage === 'loading' && <LoadingScreen progress={loadProgress} />}
-          {(stage === 'boot' || stage === 'parked') && (
+          {stage === 'boot' && (
             <BootScreen
-              running={stage === 'boot'}
+              running
               onReady={startZoom}
-              reduced={reduced || stage === 'parked'}
+              reduced={reduced}
             />
           )}
         </FlatCRT>
@@ -360,9 +360,14 @@ export default function App() {
         <div
           ref={overlayRef}
           className={threeD ? 'screen-overlay is-framed' : 'flat-os-bezel'}
-          hidden={!overlayVisible}
+          hidden={threeD ? !overlayVisible : !(overlayVisible || stage === 'parked')}
         >
-          <OperatingSystem interactive={stage === 'os'} {...osProps} />
+          <div hidden={!threeD && stage === 'parked'} style={{ height: '100%' }}>
+            <OperatingSystem interactive={stage === 'os'} {...osProps} />
+          </div>
+          {!threeD && stage === 'parked' && (
+            <BootScreen running={false} onReady={startZoom} reduced parked />
+          )}
         </div>
       )}
 

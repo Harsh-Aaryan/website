@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { TIMING } from '../config'
 import { BOOT_LINES } from '../content'
 
-export default function BootScreen({ running, onReady, reduced }) {
+export default function BootScreen({ running, onReady, reduced, parked }) {
   const [count, setCount] = useState(reduced ? BOOT_LINES.length : 1)
   const boxRef = useRef(null)
   const ready = count >= BOOT_LINES.length
@@ -72,7 +72,7 @@ export default function BootScreen({ running, onReady, reduced }) {
   return (
     <div
       ref={boxRef}
-      className="boot-screen"
+      className={`boot-screen${parked ? ' is-parked' : ''}`}
       role="dialog"
       aria-modal="true"
       aria-label="HARSH.OS boot"

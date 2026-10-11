@@ -16,8 +16,9 @@ const TV_SCALE = 1.55
 const TV_YAW = 0.18
 
 const START_CAM = { pos: [0.68, 0.48, 1.42], look: [0.0, 0.28, 0.02], fov: 30 }
-/** Close enough that the glass is ~82–88% wide with bezel still visible. */
-const END_CAM = { pos: [0.0, 0.38, 0.80], look: [0.0, 0.36, 0.05], fov: 26 }
+const END_FOV = 26
+/** Fallback glass center (yaw 0, scaled) until the bbox screen is known. */
+const GLASS_LOOK = [0.0, 0.45, 0.22]
 
 /** PerspectiveCamera.fov is vertical — pull back and widen on tall frames. */
 function startCamForAspect(aspect) {
@@ -30,17 +31,23 @@ function startCamForAspect(aspect) {
   }
 }
 
-/** Portrait: ~90% glass width with bezel still visible. */
-function endCamForAspect(aspect) {
+/** Square-on end cam aimed at the glass center. Height-limited on landscape. */
+function endCamForAspect(aspect, look) {
   const safe = Math.max(0.42, aspect)
-  if (safe >= 1) return END_CAM
-  const half = (END_CAM.fov * Math.PI) / 360
-  const fov = Math.min(52, (2 * Math.atan(Math.tan(half) / safe) * 180) / Math.PI)
+  const half = (END_FOV * Math.PI) / 360
+  const fov = safe >= 1 ? END_FOV : Math.min(52, (2 * Math.atan(Math.tan(half) / safe) * 180) / Math.PI)
+  const dist = safe >= 1 ? 0.98 : 1.20
   return {
-    pos: [END_CAM.pos[0], END_CAM.pos[1], 1.14],
-    look: END_CAM.look,
+    pos: [look[0], look[1], look[2] + dist],
+    look,
     fov,
   }
+}
+
+function yawAtZoom(t) {
+  const s = Math.min(1, Math.max(0, (t - 0.55) / 0.35))
+  const e = s * s * (3 - 2 * s)
+  return TV_YAW * (1 - e)
 }
 
 function lerp(a, b, t) {
@@ -63,14 +70,15 @@ function curveGeometry(width, height, bend = 0.028) {
   return geo
 }
 
-function CameraRig({ zoomRef }) {
+function CameraRig({ zoomRef, glassCenterRef }) {
   const { camera, size } = useThree()
   const aspect = size.width / Math.max(1, size.height)
   const start = useMemo(() => startCamForAspect(aspect), [aspect])
-  const end = useMemo(() => endCamForAspect(aspect), [aspect])
 
   useFrame(() => {
     const t = zoomRef?.current ?? 0
+    const lookEnd = glassCenterRef?.current || GLASS_LOOK
+    const end = endCamForAspect(aspect, lookEnd)
     const pos = lerp3(start.pos, end.pos, t)
     const look = lerp3(start.look, end.look, t)
     camera.position.set(pos[0], pos[1], pos[2])
@@ -180,12 +188,25 @@ function NightEnv() {
   return <Environment map={tex} environmentIntensity={0.3} background={false} />
 }
 
-function VintageCRT({ bootMap, onGlassRect }) {
+function VintageCRT({ bootMap, onGlassRect, zoomRef, glassCenterRef }) {
+  const group = useRef()
   const { scene } = useGLTF('/assets/scene/r2/television_02.glb', false, true)
   const clone = useMemo(() => scene.clone(true), [scene])
   const [screen, setScreen] = useState({
     position: [0, 0.29, 0.145],
     size: [0.312, 0.226],
+  })
+
+  useFrame(() => {
+    const yaw = yawAtZoom(zoomRef?.current ?? 0)
+    if (group.current) group.current.rotation.y = yaw
+    if (glassCenterRef) {
+      glassCenterRef.current = [
+        screen.position[0] * TV_SCALE,
+        screen.position[1] * TV_SCALE,
+        screen.position[2] * TV_SCALE,
+      ]
+    }
   })
 
   useLayoutEffect(() => {
@@ -228,7 +249,7 @@ function VintageCRT({ bootMap, onGlassRect }) {
   )
 
   return (
-    <group scale={TV_SCALE} position={[0, 0, 0]} rotation={[0, TV_YAW, 0]}>
+    <group ref={group} scale={TV_SCALE} position={[0, 0, 0]} rotation={[0, TV_YAW, 0]}>
       <primitive object={clone} />
       <mesh
         geometry={tubeGeo}
@@ -468,6 +489,7 @@ function WindowWash() {
 }
 
 function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady, onGlassRect }) {
+  const glassCenterRef = useRef(GLASS_LOOK)
   const bootMap = useBootTexture({
     running: bootRunning,
     reduced: reducedMotion,
@@ -508,10 +530,15 @@ function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady, on
       <NightEnv />
       <NightRoom />
       <Desk />
-      <VintageCRT bootMap={bootMap} onGlassRect={onGlassRect} />
+      <VintageCRT
+        bootMap={bootMap}
+        onGlassRect={onGlassRect}
+        zoomRef={zoomRef}
+        glassCenterRef={glassCenterRef}
+      />
       <ContactShadows position={[0, 0.001, 0.08]} opacity={0.55} scale={3.6} blur={2.2} far={1.2} color="#000" />
       <Dust />
-      <CameraRig zoomRef={zoomRef} />
+      <CameraRig zoomRef={zoomRef} glassCenterRef={glassCenterRef} />
       <EffectComposer disableNormalPass multisampling={0}>
         <Bloom intensity={0.08} luminanceThreshold={0.92} mipmapBlur />
         {enableDof && (
