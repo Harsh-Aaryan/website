@@ -23,13 +23,12 @@ export default function BootScreen({ running, onReady, reduced }) {
   useEffect(() => {
     if (!running || !ready) return
     const hold = new URLSearchParams(window.location.search).get('hold') === '1'
-    if (hold) return
     const go = () => onReady()
-    const timer = window.setTimeout(go, reduced ? 0 : TIMING.bootHoldMs)
+    const timer = hold ? 0 : window.setTimeout(go, reduced ? 0 : TIMING.bootHoldMs)
     window.addEventListener('keydown', go)
     window.addEventListener('pointerdown', go)
     return () => {
-      window.clearTimeout(timer)
+      if (timer) window.clearTimeout(timer)
       window.removeEventListener('keydown', go)
       window.removeEventListener('pointerdown', go)
     }

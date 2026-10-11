@@ -15,7 +15,7 @@ import { useBootTexture } from './ScreenBoot'
 
 const TV_SCALE = 1.55
 const START_CAM = { pos: [0.68, 0.48, 1.42], look: [0.0, 0.28, 0.02], fov: 30 }
-const END_CAM = { pos: [0.02, 0.40, 0.52], look: [0.0, 0.39, 0.16], fov: 26 }
+const END_CAM = { pos: [0.01, 0.395, 0.40], look: [0.0, 0.385, 0.175], fov: 24 }
 
 function lerp(a, b, t) {
   return a + (b - a) * t
@@ -154,17 +154,14 @@ function VintageCRT({ screenRef, bootMap }) {
         renderOrder={3}
       >
         <meshPhysicalMaterial
-          color="#ffffff"
-          roughness={0.06}
-          metalness={0}
-          transmission={0.86}
-          thickness={0.012}
-          ior={1.45}
+          color="#d8e4ee"
+          roughness={0.08}
+          metalness={0.04}
           transparent
-          opacity={0.16}
-          clearcoat={1}
-          clearcoatRoughness={0.18}
-          envMapIntensity={1.6}
+          opacity={0.11}
+          clearcoat={0.85}
+          clearcoatRoughness={0.22}
+          envMapIntensity={1.35}
           depthWrite={false}
         />
       </mesh>
@@ -248,7 +245,7 @@ function Scene({ zoom, onScreenRect, bootRunning, reducedMotion }) {
       <hemisphereLight args={['#7d9eb0', '#140e08', 0.08]} />
       <directionalLight
         position={[-2.4, 1.6, -0.55]}
-        intensity={0.38}
+        intensity={0.52}
         color="#8fb4c9"
         castShadow
         shadow-mapSize-width={1024}
@@ -284,11 +281,11 @@ function Scene({ zoom, onScreenRect, bootRunning, reducedMotion }) {
       <CameraRig zoom={zoom} screenRef={screenRef} onScreenRect={onScreenRect} />
       {zoom < 0.92 && (
         <EffectComposer disableNormalPass multisampling={0}>
-          <Bloom intensity={0.2} luminanceThreshold={0.78} mipmapBlur />
+          <Bloom intensity={0.16} luminanceThreshold={0.82} mipmapBlur />
           <DepthOfField
-            focusDistance={0.012}
-            focalLength={0.016}
-            bokehScale={zoom > 0.25 ? 0.8 : 1.5}
+            focusDistance={0.014}
+            focalLength={0.012}
+            bokehScale={zoom > 0.25 ? 0.5 : 1.1}
           />
           <Noise opacity={0.022} />
           <Vignette offset={0.28} darkness={0.55} />
