@@ -16,7 +16,7 @@ const TV_SCALE = 1.55
 const TV_YAW = 0.18
 
 const START_CAM = { pos: [0.68, 0.48, 1.42], look: [0.0, 0.28, 0.02], fov: 30 }
-const END_CAM = { pos: [0.22, 0.40, 1.12], look: [0.0, 0.32, 0.05], fov: 30 }
+const END_CAM = { pos: [0.0, 0.34, 0.62], look: [0.0, 0.34, 0.05], fov: 26 }
 
 /** PerspectiveCamera.fov is vertical — widen slightly on tall frames. */
 function startCamForAspect(aspect) {
@@ -68,6 +68,56 @@ function CameraRig({ zoomRef }) {
   return null
 }
 
+function GlassTracker({ screen, onRect }) {
+  const group = useRef()
+  const { camera, size } = useThree()
+  const onRectRef = useRef(onRect)
+  onRectRef.current = onRect
+  const corners = useMemo(
+    () => [
+      new THREE.Vector3(),
+      new THREE.Vector3(),
+      new THREE.Vector3(),
+      new THREE.Vector3(),
+    ],
+    []
+  )
+
+  useFrame(() => {
+    if (!group.current || !onRectRef.current) return
+    group.current.updateWorldMatrix(true, false)
+    const hw = screen.size[0] * 0.5
+    const hh = screen.size[1] * 0.5
+    corners[0].set(-hw, -hh, 0)
+    corners[1].set(hw, -hh, 0)
+    corners[2].set(hw, hh, 0)
+    corners[3].set(-hw, hh, 0)
+    let minX = Infinity
+    let minY = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
+    for (const point of corners) {
+      group.current.localToWorld(point)
+      point.project(camera)
+      const x = (point.x * 0.5 + 0.5) * size.width
+      const y = (-point.y * 0.5 + 0.5) * size.height
+      minX = Math.min(minX, x)
+      maxX = Math.max(maxX, x)
+      minY = Math.min(minY, y)
+      maxY = Math.max(maxY, y)
+    }
+    onRectRef.current({
+      left: minX,
+      top: minY,
+      width: maxX - minX,
+      height: maxY - minY,
+      widthPct: ((maxX - minX) / size.width) * 100,
+    })
+  })
+
+  return <group ref={group} position={screen.position} />
+}
+
 function NightEnv() {
   const tex = useTexture('/assets/scene/r1/unfinished_office_night_1k.jpg')
   useEffect(() => {
@@ -77,7 +127,7 @@ function NightEnv() {
   return <Environment map={tex} environmentIntensity={0.3} background={false} />
 }
 
-function VintageCRT({ bootMap }) {
+function VintageCRT({ bootMap, onGlassRect }) {
   const { scene } = useGLTF('/assets/scene/r2/television_02.glb', false, true)
   const clone = useMemo(() => scene.clone(true), [scene])
   const [screen, setScreen] = useState({
@@ -153,17 +203,18 @@ function VintageCRT({ bootMap }) {
         renderOrder={3}
       >
         <meshPhysicalMaterial
-          color="#c8c2b6"
-          roughness={0.16}
+          color="#1a1410"
+          roughness={0.22}
           metalness={0}
           transparent
-          opacity={0.05}
-          clearcoat={0.55}
-          clearcoatRoughness={0.36}
-          envMapIntensity={0.2}
+          opacity={0.04}
+          clearcoat={0.4}
+          clearcoatRoughness={0.45}
+          envMapIntensity={0.1}
           depthWrite={false}
         />
       </mesh>
+      <GlassTracker screen={screen} onRect={onGlassRect} />
     </group>
   )
 }
@@ -363,7 +414,7 @@ function WindowWash() {
   )
 }
 
-function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady }) {
+function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady, onGlassRect }) {
   const bootMap = useBootTexture({
     running: bootRunning,
     reduced: reducedMotion,
@@ -404,7 +455,7 @@ function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady }) 
       <NightEnv />
       <NightRoom />
       <Desk />
-      <VintageCRT bootMap={bootMap} />
+      <VintageCRT bootMap={bootMap} onGlassRect={onGlassRect} />
       <ContactShadows position={[0, 0.001, 0.08]} opacity={0.55} scale={3.6} blur={2.2} far={1.2} color="#000" />
       <Dust />
       <CameraRig zoomRef={zoomRef} />
@@ -433,6 +484,7 @@ export default function CRTScene({
   revealed,
   enableDof,
   onBootReady,
+  onGlassRect,
 }) {
   return (
     <div className={`scene-layer scene-canvas ${revealed ? 'is-ready' : ''}`}>
@@ -456,6 +508,7 @@ export default function CRTScene({
           reducedMotion={reducedMotion}
           enableDof={enableDof}
           onBootReady={onBootReady}
+          onGlassRect={onGlassRect}
         />
       </Canvas>
     </div>

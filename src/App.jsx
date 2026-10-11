@@ -32,6 +32,25 @@ function easeZoom(t) {
   return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2
 }
 
+function smoothstep(t) {
+  const x = Math.min(1, Math.max(0, t))
+  return x * x * (3 - 2 * x)
+}
+
+function applyOverlayRect(el, rect, zoom) {
+  if (!el || !rect) return
+  const u = smoothstep((zoom - 0.9) / 0.1)
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+  el.style.left = `${rect.left * (1 - u)}px`
+  el.style.top = `${rect.top * (1 - u)}px`
+  el.style.width = `${rect.width + (vw - rect.width) * u}px`
+  el.style.height = `${rect.height + (vh - rect.height) * u}px`
+  el.style.borderRadius = `${(16 * (1 - u)).toFixed(2)}% / ${(20 * (1 - u)).toFixed(2)}%`
+  el.classList.toggle('is-mapped', u < 0.995)
+  el.classList.toggle('is-full', u >= 0.995)
+}
+
 export default function App() {
   const skipStored = readStored(STORAGE.skipIntro, '') === '1'
   const reduced = prefersReducedMotion()
@@ -51,6 +70,8 @@ export default function App() {
   const [overlayOn, setOverlayOn] = useState(() => (zoomParam ?? 0) >= 0.9)
   const zoomRef = useRef(skipStored ? 1 : zoomParam ?? 0)
   const overlayOnRef = useRef((zoomParam ?? 0) >= 0.9)
+  const overlayRef = useRef(null)
+  const glassRectRef = useRef(null)
   const zoomRaf = useRef(0)
 
   useCrtAudio(!muted && stage !== 'loading')
@@ -106,9 +127,8 @@ export default function App() {
       if (eased >= 0.9 && !overlayOnRef.current) {
         overlayOnRef.current = true
         setOverlayOn(true)
-        setFlash(true)
-        window.setTimeout(() => setFlash(false), TIMING.handoffFlashMs)
       }
+      applyOverlayRect(overlayRef.current, glassRectRef.current, eased)
       if (t < 1) {
         zoomRaf.current = requestAnimationFrame(tick)
       } else {
@@ -119,6 +139,11 @@ export default function App() {
   }, [finishToOs, reduced, stage, threeD])
 
   useEffect(() => () => cancelAnimationFrame(zoomRaf.current), [])
+
+  useEffect(() => {
+    if (!overlayOn) return
+    applyOverlayRect(overlayRef.current, glassRectRef.current, zoomRef.current)
+  }, [overlayOn])
 
   const skipIntro = () => {
     cancelAnimationFrame(zoomRaf.current)
@@ -177,6 +202,11 @@ export default function App() {
               revealed={ready3d}
               enableDof={false}
               onBootReady={startZoom}
+              onGlassRect={(rect) => {
+                glassRectRef.current = rect
+                window.__glassMetrics = rect
+                applyOverlayRect(overlayRef.current, rect, zoomRef.current)
+              }}
             />
           </Suspense>
         </>
@@ -192,9 +222,8 @@ export default function App() {
       )}
 
       {showLanding && threeD && stage === 'zooming' && overlayOn && (
-        <div className="screen-overlay is-full is-wiping">
+        <div ref={overlayRef} className="screen-overlay is-mapped">
           <OperatingSystem interactive={false} {...osProps} />
-          {flash && <div className="handoff-flash" aria-hidden="true" />}
         </div>
       )}
 
