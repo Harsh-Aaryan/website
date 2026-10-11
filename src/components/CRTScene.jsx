@@ -17,7 +17,7 @@ const TV_YAW = 0.18
 
 const START_CAM = { pos: [0.68, 0.48, 1.42], look: [0.0, 0.28, 0.02], fov: 30 }
 /** Close enough that the glass is ~82–88% wide with bezel still visible. */
-const END_CAM = { pos: [0.0, 0.38, 0.80], look: [0.0, 0.36, 0.05], fov: 26 }
+const END_CAM = { pos: [0.0, 0.40, 0.80], look: [0.0, 0.40, 0.05], fov: 26 }
 
 /** PerspectiveCamera.fov is vertical — pull back and widen on tall frames. */
 function startCamForAspect(aspect) {
@@ -37,7 +37,7 @@ function endCamForAspect(aspect) {
   const half = (END_CAM.fov * Math.PI) / 360
   const fov = Math.min(52, (2 * Math.atan(Math.tan(half) / safe) * 180) / Math.PI)
   return {
-    pos: [END_CAM.pos[0], END_CAM.pos[1], END_CAM.pos[2] + 0.06],
+    pos: [END_CAM.pos[0], END_CAM.pos[1], 1.24],
     look: END_CAM.look,
     fov,
   }
