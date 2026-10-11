@@ -818,21 +818,21 @@
     max-width: calc(100% - 16px);
     top: 8px;
     left: 8px;
-    gap: 8px 10px;
+    gap: 8px 12px;
   }
 
   .desktop-icon {
-    width: 72px;
-    flex: 0 0 72px;
+    width: 100px;
+    flex: 0 0 100px;
   }
 
   .desktop-icon-label {
     font-size: 16px;
-    line-height: 1.15;
+    line-height: 1.2;
     letter-spacing: 0.02em;
     max-width: 100%;
-    overflow-wrap: anywhere;
-    word-break: break-word;
+    white-space: nowrap;
+    overflow: hidden;
   }
 
   .ascii-art { font-size: 5px; }
