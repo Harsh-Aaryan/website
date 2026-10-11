@@ -792,7 +792,7 @@
 
   .window {
     position: absolute !important;
-    inset: 86px 8px 8px 8px;
+    inset: 180px 8px 8px 8px;
     width: auto !important;
     height: auto !important;
     max-width: none;
@@ -800,27 +800,56 @@
     box-shadow: 4px 4px 0 var(--muted);
   }
 
+  .window-titlebar {
+    height: 44px;
+    min-height: 44px;
+  }
+
   .window-body {
     max-height: none;
-    height: calc(100% - 28px);
+    height: calc(100% - 44px);
     padding: 16px;
   }
 
   .icon-grid {
     flex-direction: row;
-    flex-wrap: nowrap;
-    overflow-x: auto;
+    flex-wrap: wrap;
+    overflow: visible;
     max-width: calc(100% - 16px);
     top: 8px;
     left: 8px;
-    gap: 8px;
+    gap: 8px 10px;
   }
 
-  .desktop-icon { width: 72px; }
+  .desktop-icon {
+    width: 72px;
+    flex: 0 0 72px;
+  }
+
+  .desktop-icon-label {
+    font-size: 16px;
+    line-height: 1.15;
+    letter-spacing: 0.02em;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
 
   .ascii-art { font-size: 5px; }
   .resume-frame { height: 360px; }
-  .skip-intro-btn { bottom: 56px; right: 10px; }
+  .skip-intro-btn {
+    bottom: 56px;
+    right: 10px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 8px 12px;
+  }
+
+  .window-close,
+  .start-menu button {
+    min-width: 44px;
+    min-height: 44px;
+  }
 
   .boot-screen {
     font-size: 15px;
