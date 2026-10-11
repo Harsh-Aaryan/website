@@ -16,14 +16,15 @@ const CRT_SCALE = 0.5
 const CRT_LIFT = 0.502 * CRT_SCALE
 const CRT_YAW = 0.16
 
-const START_CAM = { pos: [0.82, 0.5, 1.48], look: [-0.1, 0.22, 0.02], fov: 32 }
-const END_CAM = { pos: [0.018, 0.328, 0.58], look: [0.0, 0.318, 0.18], fov: 24 }
+const START_CAM = { pos: [0.5, 0.42, 1.2], look: [-0.14, 0.24, 0.06], fov: 32 }
+const END_CAM = { pos: [0.016, 0.326, 0.62], look: [0.0, 0.32, 0.25], fov: 24 }
 
 // Beige CRT local space (origin at bounding-box center, Y-up, screen on +Z).
+// z sits just in front of the model's own black glass so the BIOS is visible.
 const SCREEN = {
-  position: [0.0, 0.148, 0.355],
-  size: [0.498, 0.378],
-  bend: 0.05,
+  position: [0.0, 0.146, 0.496],
+  size: [0.518, 0.392],
+  bend: 0.038,
 }
 
 function lerp(a, b, t) {
@@ -160,10 +161,10 @@ function VintageCRT({ screenRef, bootMap }) {
       obj.receiveShadow = true
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material]
       mats.forEach((mat) => {
-        mat.envMapIntensity = 0.32
-        mat.roughness = Math.min((mat.roughness ?? 0.5) + 0.14, 0.82)
-        mat.metalness = Math.min(mat.metalness ?? 0.04, 0.08)
-        if (mat.color) mat.color.multiply(new THREE.Color('#d8c29a'))
+        mat.envMapIntensity = 0.22
+        mat.roughness = Math.min((mat.roughness ?? 0.5) + 0.22, 0.9)
+        mat.metalness = 0.02
+        if (mat.color) mat.color.multiply(new THREE.Color('#d4be94'))
       })
     })
   }, [cloned])
@@ -200,32 +201,29 @@ function VintageCRT({ screenRef, bootMap }) {
           map={bootMap}
           emissiveMap={bootMap}
           emissive={new THREE.Color('#ffb000')}
-          emissiveIntensity={0.72}
+          emissiveIntensity={1.15}
           alphaMap={mask}
           transparent
-          depthWrite={false}
+          depthWrite
           toneMapped={false}
-          roughness={0.42}
+          roughness={0.55}
           metalness={0}
+          polygonOffset
+          polygonOffsetFactor={-2}
         />
       </mesh>
       <mesh
         geometry={glassGeo}
-        position={[SCREEN.position[0], SCREEN.position[1], SCREEN.position[2] + 0.012]}
+        position={[SCREEN.position[0], SCREEN.position[1], SCREEN.position[2] + 0.01]}
         renderOrder={3}
       >
-        <meshPhysicalMaterial
+        <meshBasicMaterial
           map={sheen}
-          color="#c5d4e0"
-          roughness={0.08}
-          metalness={0.02}
-          transparent
-          opacity={0.16}
-          clearcoat={1}
-          clearcoatRoughness={0.18}
-          envMapIntensity={1.35}
           alphaMap={mask}
+          transparent
+          opacity={0.14}
           depthWrite={false}
+          toneMapped={false}
         />
       </mesh>
     </group>
@@ -255,10 +253,10 @@ function Desk() {
           map={albedo}
           normalMap={normal}
           roughnessMap={rough}
-          color="#3a2214"
-          roughness={0.84}
+          color="#2a160e"
+          roughness={0.78}
           metalness={0.02}
-          envMapIntensity={0.08}
+          envMapIntensity={0.05}
         />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.014, 0.22]} receiveShadow>
@@ -270,66 +268,50 @@ function Desk() {
 }
 
 function NightRoom() {
-  const [albedo, normal, rough] = useTexture([
-    '/assets/scene/painted_plaster_wall_diff_1k.webp',
-    '/assets/scene/painted_plaster_wall_nor_gl_1k.webp',
-    '/assets/scene/painted_plaster_wall_rough_1k.webp',
-  ])
+  const albedo = useTexture('/assets/scene/painted_plaster_wall_diff_1k.webp')
   const city = useTexture('/assets/scene/modern_buildings_night.webp')
   useEffect(() => {
-    ;[albedo, normal, rough].forEach((tex) => {
-      tex.wrapS = tex.wrapT = THREE.RepeatWrapping
-      tex.repeat.set(2.0, 1.3)
-      tex.anisotropy = 4
-    })
+    albedo.wrapS = albedo.wrapT = THREE.RepeatWrapping
+    albedo.repeat.set(2.0, 1.3)
+    albedo.anisotropy = 4
     albedo.colorSpace = THREE.SRGBColorSpace
     city.colorSpace = THREE.SRGBColorSpace
-  }, [albedo, city, normal, rough])
-
-  const wallMat = {
-    map: albedo,
-    normalMap: normal,
-    roughnessMap: rough,
-    color: '#4a5360',
-    roughness: 0.9,
-    metalness: 0.02,
-    envMapIntensity: 0.18,
-  }
+  }, [albedo, city])
 
   return (
     <group>
       <mesh position={[0, 1.12, -1.32]} receiveShadow>
         <planeGeometry args={[5.2, 2.5]} />
-        <meshStandardMaterial {...wallMat} />
+        <meshBasicMaterial map={albedo} color="#3a4250" />
       </mesh>
       <mesh position={[-1.28, 1.12, 0.16]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
         <planeGeometry args={[3.2, 2.5]} />
-        <meshStandardMaterial {...wallMat} color="#3e4652" />
+        <meshBasicMaterial map={albedo} color="#323844" />
       </mesh>
       <mesh position={[1.72, 1.12, 0.16]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
         <planeGeometry args={[3.2, 2.5]} />
-        <meshStandardMaterial {...wallMat} color="#2f353d" />
+        <meshBasicMaterial map={albedo} color="#222830" />
       </mesh>
       <mesh position={[0, 2.28, 0.12]} rotation={[Math.PI / 2, 0, 0]}>
         <planeGeometry args={[6.8, 4.6]} />
         <meshStandardMaterial color="#0a0c10" roughness={1} />
       </mesh>
 
-      <group position={[-1.265, 1.16, -0.08]} rotation={[0, Math.PI / 2, 0]}>
+      <group position={[-1.265, 0.88, 0.12]} rotation={[0, Math.PI / 2, 0]}>
         <mesh position={[0, 0, -0.02]}>
-          <planeGeometry args={[1.46, 1.24]} />
-          <meshBasicMaterial map={city} toneMapped={false} />
+          <planeGeometry args={[1.72, 1.42]} />
+          <meshBasicMaterial map={city} color="#d4e8ff" toneMapped={false} />
         </mesh>
         <mesh>
-          <planeGeometry args={[1.46, 1.24]} />
-          <meshBasicMaterial color="#8fb4c9" transparent opacity={0.1} toneMapped={false} />
+          <planeGeometry args={[1.72, 1.42]} />
+          <meshBasicMaterial color="#8fb4c9" transparent opacity={0.08} toneMapped={false} />
         </mesh>
         {[
-          [0, 0.64, 0.02, 1.58, 0.055, 0.045],
-          [0, -0.64, 0.02, 1.58, 0.055, 0.045],
-          [-0.76, 0, 0.02, 0.055, 1.34, 0.045],
-          [0.76, 0, 0.02, 0.055, 1.34, 0.045],
-          [0, 0, 0.018, 0.03, 1.24, 0.02],
+          [0, 0.73, 0.02, 1.84, 0.055, 0.045],
+          [0, -0.73, 0.02, 1.84, 0.055, 0.045],
+          [-0.88, 0, 0.02, 0.055, 1.52, 0.045],
+          [0.88, 0, 0.02, 0.055, 1.52, 0.045],
+          [0, 0, 0.018, 0.03, 1.42, 0.02],
         ].map(([x, y, z, w, h, d], i) => (
           <mesh key={i} position={[x, y, z]}>
             <boxGeometry args={[w, h, d]} />
@@ -370,7 +352,7 @@ function Keyboard() {
       mats.forEach((mat) => {
         mat.envMapIntensity = 0.28
         mat.roughness = Math.min((mat.roughness ?? 0.5) + 0.1, 0.8)
-        if (mat.color) mat.color.multiply(new THREE.Color('#d2c09a'))
+        if (mat.color) mat.color.multiply(new THREE.Color('#eee0c4'))
       })
     })
   }, [cloned])
@@ -450,29 +432,37 @@ function Scene({ zoom, onScreenRect, bootRunning, reducedMotion }) {
       <color attach="background" args={['#0b0e13']} />
       <fog attach="fog" args={['#0b0e13', 6.2, 14]} />
       <SoftShadows size={14} samples={8} focus={0.55} />
-      <hemisphereLight args={['#6d8496', '#1a120c', 0.09]} />
+      <hemisphereLight args={['#5a6c7a', '#1c120c', 0.05]} />
       <spotLight
-        position={[-1.05, 1.42, 0.05]}
-        angle={0.42}
-        penumbra={0.9}
-        intensity={0.7}
+        position={[-1.1, 1.35, 0.2]}
+        angle={0.5}
+        penumbra={0.88}
+        intensity={0.85}
         color="#8fb4c9"
-        distance={4.2}
+        distance={4.6}
         decay={2}
         castShadow
       />
       <spotLight
-        position={[0.12, 0.34, 0.62]}
-        angle={0.95}
-        penumbra={0.92}
-        intensity={0.55}
-        color="#c47e24"
-        distance={1.8}
+        position={[-0.2, 1.55, -0.6]}
+        angle={0.7}
+        penumbra={0.9}
+        intensity={0.28}
+        color="#7f8ea0"
+        distance={5}
         decay={2}
       />
-      <pointLight position={[0.05, 0.22, 0.42]} intensity={0.18} color="#ffb000" distance={0.9} decay={2} />
-      <ambientLight intensity={0.05} color="#4a5560" />
-      <Environment files="/assets/scene/unfinished_office_night_1k.hdr" environmentIntensity={0.16} background={false} />
+      <spotLight
+        position={[0.18, 0.62, 0.78]}
+        angle={0.85}
+        penumbra={0.95}
+        intensity={0.42}
+        color="#c47e24"
+        distance={1.6}
+        decay={2}
+      />
+      <ambientLight intensity={0.06} color="#4a5560" />
+      <Environment files="/assets/scene/unfinished_office_night_1k.hdr" environmentIntensity={0.12} background={false} />
       <NightRoom />
       <Desk />
       <VintageCRT screenRef={screenRef} bootMap={bootMap} />
@@ -507,7 +497,7 @@ export default function CRTScene({ zoom, onScreenRect, onReady, onProgress, boot
           alpha: false,
           powerPreference: 'high-performance',
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 0.82,
+          toneMappingExposure: 0.92,
           outputColorSpace: THREE.SRGBColorSpace,
         }}
         camera={{ position: START_CAM.pos, fov: START_CAM.fov }}

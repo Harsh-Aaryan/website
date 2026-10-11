@@ -29,14 +29,15 @@ export function useBootTexture({ running, reduced }) {
     let intervalId = 0
 
     const paintBackground = () => {
-      ctx.fillStyle = '#0E0A05'
+      ctx.fillStyle = '#120c06'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
-      const glow = ctx.createRadialGradient(512, 384, 70, 512, 400, 480)
-      glow.addColorStop(0, 'rgba(255, 176, 0, 0.1)')
+      const glow = ctx.createRadialGradient(512, 384, 50, 512, 400, 520)
+      glow.addColorStop(0, 'rgba(255, 176, 0, 0.22)')
+      glow.addColorStop(0.55, 'rgba(255, 176, 0, 0.06)')
       glow.addColorStop(1, 'rgba(14, 10, 5, 0)')
       ctx.fillStyle = glow
       ctx.fillRect(0, 0, canvas.width, canvas.height)
-      ctx.fillStyle = 'rgba(255, 176, 0, 0.028)'
+      ctx.fillStyle = 'rgba(255, 176, 0, 0.04)'
       for (let y = 0; y < canvas.height; y += 4) {
         ctx.fillRect(0, y, canvas.width, 1)
       }
@@ -57,15 +58,15 @@ export function useBootTexture({ running, reduced }) {
       ctx.shadowColor = 'transparent'
       ctx.shadowBlur = 0
       ctx.fillStyle = '#FFB000'
-      ctx.font = '26px "IBM Plex Mono", VT323, ui-monospace, monospace'
+      ctx.font = '52px VT323, "IBM Plex Mono", ui-monospace, monospace'
       ctx.textBaseline = 'top'
-      let y = 78
+      let y = 44
       BOOT_LINES.slice(0, count).forEach((line) => {
-        ctx.fillText(line || ' ', 88, y)
-        y += 40
+        ctx.fillText(line || ' ', 48, y)
+        y += 52
       })
       if (count >= BOOT_LINES.length) {
-        ctx.fillRect(88, y + 6, 13, 24)
+        ctx.fillRect(48, y + 8, 18, 32)
       }
       paintVignette()
       texture.needsUpdate = true
@@ -92,15 +93,14 @@ export function useBootTexture({ running, reduced }) {
       }, TIMING.bootLineMs)
     }
 
-    start()
-    if (document.fonts?.ready) {
-      document.fonts.ready.then(() => {
-        if (!cancelled && !running) {
-          paintBackground()
-          texture.needsUpdate = true
-        }
-      })
+    let started = false
+    const begin = () => {
+      if (started || cancelled) return
+      started = true
+      start()
     }
+    if (document.fonts?.ready) document.fonts.ready.then(begin)
+    window.setTimeout(begin, 400)
 
     return () => {
       cancelled = true
