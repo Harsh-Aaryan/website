@@ -1,6 +1,5 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import {
-  ContactShadows,
   Environment,
   useGLTF,
   useProgress,
@@ -665,7 +664,6 @@ function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady, on
         glassCenterRef={glassCenterRef}
         glassSizeRef={glassSizeRef}
       />
-      <ContactShadows position={[0, 0.001, 0.08]} opacity={0.55} scale={3.6} blur={2.2} far={1.2} color="#000" />
       <Dust />
       <CameraRig zoomRef={zoomRef} glassCenterRef={glassCenterRef} glassSizeRef={glassSizeRef} />
       <ShaderWarmup
@@ -696,10 +694,10 @@ export default function CRTScene({
     <div className={`scene-layer scene-canvas ${revealed ? 'is-ready' : ''}`}>
       <Canvas
         frameloop={suspended ? 'never' : 'always'}
-        dpr={[1, 1.5]}
-        shadows
+        dpr={[1, 1]}
+        shadows={false}
         gl={{
-          antialias: true,
+          antialias: false,
           alpha: false,
           powerPreference: 'high-performance',
           toneMapping: THREE.ACESFilmicToneMapping,
