@@ -8,7 +8,7 @@ import {
   useTexture,
 } from '@react-three/drei'
 import { Bloom, DepthOfField, EffectComposer, Noise, Vignette } from '@react-three/postprocessing'
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { useBootTexture } from './ScreenBoot'
 
@@ -60,7 +60,7 @@ function makeTubeMask() {
       const u = (x / (size - 1)) * 2 - 1
       const v = (y / (size - 1)) * 2 - 1
       const d = (Math.abs(u) ** n + Math.abs(v) ** n) ** (1 / n)
-      const edge = THREE.MathUtils.smoothstep(d, 0.78, 1.02)
+      const edge = THREE.MathUtils.smoothstep(d, 0.88, 1.05)
       const a = Math.round((1 - edge) * 255)
       const i = (y * size + x) * 4
       img.data[i] = img.data[i + 1] = img.data[i + 2] = a
@@ -81,10 +81,10 @@ function makeGlassSheen() {
   const ctx = canvas.getContext('2d')
   ctx.clearRect(0, 0, 256, 256)
   const streak = ctx.createLinearGradient(20, 0, 200, 256)
-  streak.addColorStop(0, 'rgba(200, 220, 235, 0)')
-  streak.addColorStop(0.38, 'rgba(190, 214, 230, 0.22)')
-  streak.addColorStop(0.5, 'rgba(200, 220, 235, 0)')
-  streak.addColorStop(1, 'rgba(200, 220, 235, 0)')
+  streak.addColorStop(0, 'rgba(255, 186, 80, 0)')
+  streak.addColorStop(0.38, 'rgba(255, 176, 0, 0.08)')
+  streak.addColorStop(0.5, 'rgba(255, 186, 80, 0)')
+  streak.addColorStop(1, 'rgba(255, 186, 80, 0)')
   ctx.fillStyle = streak
   ctx.fillRect(0, 0, 256, 256)
   const tex = new THREE.CanvasTexture(canvas)
@@ -114,14 +114,21 @@ function NightEnv() {
     tex.mapping = THREE.EquirectangularReflectionMapping
     tex.colorSpace = THREE.SRGBColorSpace
   }, [tex])
-  return <Environment map={tex} environmentIntensity={0.12} background={false} />
+  return <Environment map={tex} environmentIntensity={0.06} background={false} />
 }
 
 function VintageCRT({ bootMap }) {
-  const { scene } = useGLTF('/assets/scene/crt_monitor_beige.glb')
+  const { scene } = useGLTF('/assets/scene/crt_monitor_beige.glb', false, true)
   const mask = useMemo(() => makeTubeMask(), [])
   const sheen = useMemo(() => makeGlassSheen(), [])
   const cloned = useMemo(() => scene.clone(true), [scene])
+
+  useLayoutEffect(() => {
+    bootMap.wrapS = bootMap.wrapT = THREE.ClampToEdgeWrapping
+    bootMap.repeat.set(1.12, 1.1)
+    bootMap.offset.set(-0.06, -0.05)
+    bootMap.needsUpdate = true
+  }, [bootMap])
 
   useLayoutEffect(() => {
     cloned.traverse((obj) => {
@@ -130,9 +137,10 @@ function VintageCRT({ bootMap }) {
       obj.receiveShadow = true
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material]
       mats.forEach((mat) => {
-        mat.envMapIntensity = 0.22
-        mat.roughness = Math.min((mat.roughness ?? 0.5) + 0.22, 0.9)
+        mat.envMapIntensity = 0.06
+        mat.roughness = Math.min((mat.roughness ?? 0.5) + 0.28, 0.94)
         mat.metalness = 0.02
+        if (mat.clearcoat != null) mat.clearcoat = 0
         if (mat.color) mat.color.multiply(new THREE.Color('#d4be94'))
       })
     })
@@ -189,7 +197,7 @@ function VintageCRT({ bootMap }) {
           map={sheen}
           alphaMap={mask}
           transparent
-          opacity={0.14}
+          opacity={0.06}
           depthWrite={false}
           toneMapped={false}
         />
@@ -268,12 +276,18 @@ function NightRoom() {
       <group position={[-1.265, 0.88, 0.12]} rotation={[0, Math.PI / 2, 0]}>
         <mesh position={[0, 0, -0.02]}>
           <planeGeometry args={[1.72, 1.42]} />
-          <meshBasicMaterial map={city} color="#d4e8ff" toneMapped={false} />
+          <meshBasicMaterial map={city} color="#1a2430" toneMapped={false} />
         </mesh>
         <mesh>
           <planeGeometry args={[1.72, 1.42]} />
-          <meshBasicMaterial color="#8fb4c9" transparent opacity={0.08} toneMapped={false} />
+          <meshBasicMaterial color="#070b10" transparent opacity={0.62} toneMapped={false} />
         </mesh>
+        {[-0.52, -0.26, 0, 0.26, 0.52].map((y) => (
+          <mesh key={y} position={[0, y, 0.01]}>
+            <planeGeometry args={[1.72, 0.045]} />
+            <meshBasicMaterial color="#0b0e14" transparent opacity={0.7} />
+          </mesh>
+        ))}
         {[
           [0, 0.73, 0.02, 1.84, 0.055, 0.045],
           [0, -0.73, 0.02, 1.84, 0.055, 0.045],
@@ -308,8 +322,17 @@ function NightRoom() {
   )
 }
 
+function DeferredKeyboard({ enabled }) {
+  if (!enabled) return null
+  return (
+    <Suspense fallback={null}>
+      <Keyboard />
+    </Suspense>
+  )
+}
+
 function Keyboard() {
-  const { scene } = useGLTF('/assets/scene/home_computer_keyboard.glb')
+  const { scene } = useGLTF('/assets/scene/home_computer_keyboard.glb', false, true)
   const cloned = useMemo(() => scene.clone(true), [scene])
   useLayoutEffect(() => {
     cloned.traverse((obj) => {
@@ -386,7 +409,32 @@ function LoadBridge({ onProgress, onReady }) {
   return null
 }
 
-function Scene({ zoomRef, bootRunning, reducedMotion, enableDof }) {
+function WindowWash() {
+  const light = useRef()
+  const { scene } = useThree()
+  useLayoutEffect(() => {
+    const target = light.current?.target
+    if (!target) return
+    target.position.set(-1.35, 0.9, 0.05)
+    scene.add(target)
+    return () => scene.remove(target)
+  }, [scene])
+  return (
+    <spotLight
+      ref={light}
+      position={[-1.55, 1.55, -0.35]}
+      angle={0.42}
+      penumbra={0.9}
+      intensity={0.42}
+      color="#6d8294"
+      distance={3.8}
+      decay={2}
+      castShadow
+    />
+  )
+}
+
+function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, keyboardOn }) {
   const bootMap = useBootTexture({ running: bootRunning, reduced: reducedMotion })
   const { scene } = useThree()
 
@@ -400,22 +448,13 @@ function Scene({ zoomRef, bootRunning, reducedMotion, enableDof }) {
       <fog attach="fog" args={['#0b0e13', 6.2, 14]} />
       <SoftShadows size={14} samples={8} focus={0.55} />
       <hemisphereLight args={['#5a6c7a', '#1c120c', 0.05]} />
+      <WindowWash />
       <spotLight
-        position={[-1.1, 1.35, 0.2]}
-        angle={0.5}
-        penumbra={0.88}
-        intensity={0.85}
-        color="#8fb4c9"
-        distance={4.6}
-        decay={2}
-        castShadow
-      />
-      <spotLight
-        position={[-0.2, 1.55, -0.6]}
-        angle={0.7}
-        penumbra={0.9}
-        intensity={0.28}
-        color="#7f8ea0"
+        position={[-0.35, 1.7, -0.85]}
+        angle={0.55}
+        penumbra={0.92}
+        intensity={0.16}
+        color="#5a6674"
         distance={5}
         decay={2}
       />
@@ -433,7 +472,7 @@ function Scene({ zoomRef, bootRunning, reducedMotion, enableDof }) {
       <NightRoom />
       <Desk />
       <VintageCRT bootMap={bootMap} />
-      <Keyboard />
+      <DeferredKeyboard enabled={keyboardOn} />
       <ContactShadows position={[0, 0.001, 0.16]} opacity={0.7} scale={3.6} blur={2.2} far={1.2} color="#000" />
       <Dust />
       <CameraRig zoomRef={zoomRef} />
@@ -483,6 +522,7 @@ export default function CRTScene({
           bootRunning={bootRunning}
           reducedMotion={reducedMotion}
           enableDof={enableDof}
+          keyboardOn={revealed}
         />
       </Canvas>
     </div>

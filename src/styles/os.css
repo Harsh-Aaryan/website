@@ -227,6 +227,25 @@
   top: 0 !important;
 }
 
+.screen-overlay.is-wiping {
+  animation: handoff-wipe 180ms linear;
+}
+
+@keyframes handoff-wipe {
+  0% {
+    clip-path: inset(100% 0 0 0);
+    opacity: 0.35;
+  }
+  40% {
+    clip-path: inset(42% 0 0 0);
+    opacity: 0.85;
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+  }
+}
+
 .handoff-flash {
   position: absolute;
   inset: 0;
@@ -238,6 +257,12 @@
     transparent 1px 3px
   );
   mix-blend-mode: screen;
+  animation: handoff-flash-out 180ms linear forwards;
+}
+
+@keyframes handoff-flash-out {
+  from { opacity: 0.85; }
+  to { opacity: 0; }
 }
 
 /* ---------- boot ---------- */
@@ -403,6 +428,7 @@
   width: min(640px, calc(100% - 132px));
   min-width: 280px;
   max-width: min(720px, calc(100% - 132px));
+  max-height: calc(100% - 16px);
   background: var(--screen-bg);
   border: 1px solid var(--text-dim);
   box-shadow: 4px 4px 0 var(--muted);
@@ -471,7 +497,7 @@
 .window-body {
   padding: 24px;
   overflow: auto;
-  max-height: min(70vh, 640px);
+  max-height: min(56vh, calc(100vh - var(--taskbar-h) - 120px));
   scrollbar-width: thin;
   scrollbar-color: var(--text-primary) var(--screen-bg);
 }
@@ -816,7 +842,7 @@
   }
 
   .taskbar-clock { display: none; }
-  .tray-btn { padding: 0 6px; font-size: 16px; }
+  .tray-btn { padding: 0 6px; font-size: 20px; }
 }
 
 @media (max-width: 480px) {

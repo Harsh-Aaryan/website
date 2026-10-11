@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { prefersReducedMotion } from '../config'
 import { SECTIONS } from '../content'
 import AboutSection from './sections/AboutSection'
@@ -18,6 +18,24 @@ const BODIES = {
   resume: ResumeSection,
   contact: ContactSection,
   credits: CreditsSection,
+}
+
+const TASKBAR_H = 40
+const CASCADE_WRAP = 4
+
+function clampWindowPos(x, y) {
+  const maxX = Math.max(16, window.innerWidth - 280)
+  const maxY = Math.max(8, window.innerHeight - TASKBAR_H - 160)
+  return {
+    x: Math.min(Math.max(0, x), maxX),
+    y: Math.min(Math.max(8, y), maxY),
+  }
+}
+
+function placeWindow(index) {
+  const col = Math.floor(index / CASCADE_WRAP)
+  const row = index % CASCADE_WRAP
+  return clampWindowPos(96 + row * 56 + col * 300, 18 + row * 48)
 }
 
 function formatClock(date) {
@@ -40,7 +58,6 @@ export default function OperatingSystem({
   const [menuOpen, setMenuOpen] = useState(false)
   const [clock, setClock] = useState(() => formatClock(new Date()))
   const [mobile, setMobile] = useState(() => window.innerWidth <= 768)
-  const zTop = useMemo(() => windows.reduce((max, win) => Math.max(max, win.z), 1), [windows])
 
   useEffect(() => {
     const id = window.setInterval(() => setClock(formatClock(new Date())), 1000)
@@ -68,13 +85,14 @@ export default function OperatingSystem({
       setWindows((prev) => {
         if (prev.some((win) => win.id === id)) return prev
         const top = prev.reduce((max, win) => Math.max(max, win.z), 1) + 1
+        const pos = placeWindow(prev.length)
         return [
           ...prev,
           {
             id,
             title: meta.title,
-            x: 96 + prev.length * 56,
-            y: 18 + prev.length * 48,
+            x: pos.x,
+            y: pos.y,
             z: top,
           },
         ]
@@ -93,12 +111,9 @@ export default function OperatingSystem({
   }, [])
 
   const moveWindow = useCallback((id, x, y) => {
+    const next = clampWindowPos(x, y)
     setWindows((prev) =>
-      prev.map((win) =>
-        win.id === id
-          ? { ...win, x: Math.max(0, x), y: Math.max(0, y) }
-          : win
-      )
+      prev.map((win) => (win.id === id ? { ...win, ...next } : win))
     )
   }, [])
 
@@ -172,6 +187,7 @@ export default function OperatingSystem({
         activeId={activeId}
         menuOpen={menuOpen}
         onToggleMenu={() => setMenuOpen((open) => !open)}
+        onCloseMenu={() => setMenuOpen(false)}
         onOpen={openWindow}
         onFocus={focus}
         themeId={themeId}

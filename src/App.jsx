@@ -109,6 +109,8 @@ export default function App() {
       if (eased >= 0.9 && !overlayOnRef.current) {
         overlayOnRef.current = true
         setOverlayOn(true)
+        setFlash(true)
+        window.setTimeout(() => setFlash(false), TIMING.handoffFlashMs)
       }
       if (t < 1) {
         zoomRaf.current = requestAnimationFrame(tick)
@@ -200,7 +202,7 @@ export default function App() {
       )}
 
       {showLanding && threeD && stage === 'zooming' && overlayOn && (
-        <div className="screen-overlay is-full">
+        <div className="screen-overlay is-full is-wiping">
           <OperatingSystem interactive={false} {...osProps} />
           {flash && <div className="handoff-flash" aria-hidden="true" />}
         </div>
@@ -210,7 +212,7 @@ export default function App() {
 
       {flash && stage !== 'os' && !threeD && <div className="handoff-flash" aria-hidden="true" />}
 
-      {showLanding && (
+      {showLanding && !overlayOn && (
         <button type="button" className="skip-intro-btn" onClick={skipIntro}>
           SKIP INTRO
         </button>

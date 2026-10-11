@@ -7,6 +7,7 @@ export default function Taskbar({
   activeId,
   menuOpen,
   onToggleMenu,
+  onCloseMenu,
   onOpen,
   onFocus,
   themeId,
@@ -16,10 +17,16 @@ export default function Taskbar({
   clock,
 }) {
   const itemRefs = useRef([])
+  const startRef = useRef(null)
 
   useEffect(() => {
     if (menuOpen) itemRefs.current[0]?.focus()
   }, [menuOpen])
+
+  const closeAndRestore = () => {
+    startRef.current?.focus()
+    onCloseMenu()
+  }
 
   const onMenuKey = (event) => {
     const items = itemRefs.current.filter(Boolean)
@@ -39,14 +46,21 @@ export default function Taskbar({
       items[items.length - 1].focus()
     } else if (event.key === 'Escape') {
       event.preventDefault()
-      onToggleMenu()
+      closeAndRestore()
     }
+  }
+
+  const onWrapBlur = (event) => {
+    if (!menuOpen) return
+    if (event.currentTarget.contains(event.relatedTarget)) return
+    onCloseMenu()
   }
 
   return (
     <footer className="taskbar">
-      <div className="start-wrap">
+      <div className="start-wrap" onBlur={onWrapBlur}>
         <button
+          ref={startRef}
           type="button"
           className={`start-button ${menuOpen ? 'is-open' : ''}`}
           aria-expanded={menuOpen}

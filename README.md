@@ -55,7 +55,7 @@ The desktop intro is a photoreal CRT on a dark desk in a night room. Models and 
 
 | Asset | Author | Source | License | In repo |
 | --- | --- | --- | --- | --- |
-| Beige CRT monitor + keyboard | Polyy.AI | https://polyyai.itch.io/3d-retro-tech-pack | CC0 1.0 | `public/assets/scene/crt_monitor_beige.glb`, `home_computer_keyboard.glb` |
+| Beige CRT monitor + keyboard | Polyy.AI | https://polyyai.itch.io/3d-retro-tech-pack | CC0 1.0 | `public/assets/scene/crt_monitor_beige.glb` (~175KB meshopt), `home_computer_keyboard.glb` (~323KB, lazy after boot) |
 | Unfinished Office Night (512px env) | Sergej Majboroda | https://polyhaven.com/a/unfinished_office_night | CC0 1.0 | `public/assets/scene/unfinished_office_night_512.jpg` |
 | Modern Buildings Night | Greg Zaal | https://polyhaven.com/a/modern_buildings_night | CC0 1.0 | `public/assets/scene/modern_buildings_night.webp` |
 | Dark Wood | Dario Barresi, Dimitrios Savva, Rico Cilliers | https://polyhaven.com/a/dark_wood | CC0 1.0 | `public/assets/scene/dark_wood_*_1k.webp` |

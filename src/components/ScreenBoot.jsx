@@ -58,15 +58,17 @@ export function useBootTexture({ running, reduced }) {
       ctx.shadowColor = 'transparent'
       ctx.shadowBlur = 0
       ctx.fillStyle = '#FFB000'
-      ctx.font = '52px VT323, "IBM Plex Mono", ui-monospace, monospace'
+      ctx.font = '48px VT323, "IBM Plex Mono", ui-monospace, monospace'
       ctx.textBaseline = 'top'
-      let y = 44
+      const padX = Math.round(canvas.width * 0.08)
+      const padY = Math.round(canvas.height * 0.07)
+      let y = padY
       BOOT_LINES.slice(0, count).forEach((line) => {
-        ctx.fillText(line || ' ', 48, y)
-        y += 52
+        ctx.fillText(line || ' ', padX, y)
+        y += 48
       })
       if (count >= BOOT_LINES.length) {
-        ctx.fillRect(48, y + 8, 18, 32)
+        ctx.fillRect(padX, y + 8, 16, 28)
       }
       paintVignette()
       texture.needsUpdate = true

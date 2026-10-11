@@ -44,7 +44,11 @@ export default function Window({
   return (
     <section
       className={`window ${active ? 'is-active' : ''} ${grabbing ? 'is-dragging' : ''}`}
-      style={mobile ? { zIndex: z } : { left: x, top: y, zIndex: z }}
+      style={
+        mobile
+          ? { zIndex: z }
+          : { left: x, top: y, zIndex: z, maxHeight: `calc(100% - ${y + 8}px)` }
+      }
       onPointerDown={() => onFocus(id)}
       aria-labelledby={`win-title-${id}`}
     >
