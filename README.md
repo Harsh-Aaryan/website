@@ -59,6 +59,8 @@ The desktop intro is a photoreal CRT product shot. Models and textures are **CC0
 | Moonless Golf HDRI | Greg Zaal | https://polyhaven.com/a/moonless_golf | CC0 1.0 | `public/assets/scene/moonless_golf_1k.hdr` |
 | Wood Table Worn | Dimitrios Savva | https://polyhaven.com/a/wood_table_worn | CC0 1.0 | `public/assets/scene/wood_table_worn_*_1k.webp` |
 
+Textures are WebP inside the GLB (~420KB). Draco/meshopt were tried; meshopt hung the browser decoder, so the WebP original is what ships.
+
 Mobile, `prefers-reduced-motion`, and no-WebGL still use the flat CRT fallback. The Three.js scene is lazy-loaded behind the HARSH.OS boot progress bar.
 
 ## Layout
