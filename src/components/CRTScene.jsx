@@ -15,7 +15,7 @@ import { useBootTexture } from './ScreenBoot'
 const TV_SCALE = 1.55
 const TV_YAW = 0.18
 
-const START_CAM = { pos: [0.68, 0.48, 1.42], look: [0.0, 0.28, 0.02], fov: 30 }
+const START_CAM = { pos: [0.36, 0.41, 0.92], look: [0.0, 0.34, 0.1], fov: 28 }
 const END_CAM = { pos: [0.01, 0.395, 0.4], look: [0.0, 0.385, 0.175], fov: 24 }
 
 function lerp(a, b, t) {
@@ -55,7 +55,7 @@ function CameraRig({ zoomRef }) {
 }
 
 function NightEnv() {
-  const tex = useTexture('/assets/scene/unfinished_office_night_1k.jpg')
+  const tex = useTexture('/assets/scene/r1/unfinished_office_night_1k.jpg')
   useEffect(() => {
     tex.mapping = THREE.EquirectangularReflectionMapping
     tex.colorSpace = THREE.SRGBColorSpace
@@ -64,7 +64,7 @@ function NightEnv() {
 }
 
 function VintageCRT({ bootMap }) {
-  const { scene } = useGLTF('/assets/scene/television_02.glb', false, true)
+  const { scene } = useGLTF('/assets/scene/r1/television_02.glb', false, true)
   const clone = useMemo(() => scene.clone(true), [scene])
   const [screen, setScreen] = useState({
     position: [0, 0.29, 0.145],
@@ -156,9 +156,9 @@ function VintageCRT({ bootMap }) {
 
 function Desk() {
   const [albedo, normal, rough] = useTexture([
-    '/assets/scene/dark_wood_diff_1k.webp',
-    '/assets/scene/dark_wood_nor_gl_1k.webp',
-    '/assets/scene/dark_wood_rough_1k.webp',
+    '/assets/scene/r1/dark_wood_diff_1k.webp',
+    '/assets/scene/r1/dark_wood_nor_gl_1k.webp',
+    '/assets/scene/r1/dark_wood_rough_1k.webp',
   ])
   useEffect(() => {
     ;[albedo, normal, rough].forEach((tex) => {
@@ -192,8 +192,8 @@ function Desk() {
 }
 
 function NightRoom() {
-  const albedo = useTexture('/assets/scene/painted_plaster_wall_diff_1k.webp')
-  const city = useTexture('/assets/scene/modern_buildings_night.webp')
+  const albedo = useTexture('/assets/scene/r1/painted_plaster_wall_diff_1k.webp')
+  const city = useTexture('/assets/scene/r1/modern_buildings_night.webp')
   useEffect(() => {
     albedo.wrapS = albedo.wrapT = THREE.RepeatWrapping
     albedo.repeat.set(2.0, 1.3)
@@ -317,7 +317,7 @@ function LoadBridge({ onProgress, onReady }) {
         readyRef.current = true
         onReadyRef.current?.()
       }
-    }, 4000)
+    }, 14000)
     return () => window.clearTimeout(id)
   }, [])
 
@@ -349,8 +349,12 @@ function WindowWash() {
   )
 }
 
-function Scene({ zoomRef, bootRunning, reducedMotion, enableDof }) {
-  const bootMap = useBootTexture({ running: bootRunning, reduced: reducedMotion })
+function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady }) {
+  const bootMap = useBootTexture({
+    running: bootRunning,
+    reduced: reducedMotion,
+    onReady: onBootReady,
+  })
   const { scene } = useThree()
 
   useEffect(() => {
@@ -400,7 +404,7 @@ function Scene({ zoomRef, bootRunning, reducedMotion, enableDof }) {
           />
         )}
         <Noise opacity={0.018} />
-        <Vignette offset={0.28} darkness={0.55} />
+          <Vignette offset={0.46} darkness={0.22} />
       </EffectComposer>
     </>
   )
@@ -414,6 +418,7 @@ export default function CRTScene({
   reducedMotion,
   revealed,
   enableDof,
+  onBootReady,
 }) {
   return (
     <div className={`scene-layer scene-canvas ${revealed ? 'is-ready' : ''}`}>
@@ -436,6 +441,7 @@ export default function CRTScene({
           bootRunning={bootRunning}
           reducedMotion={reducedMotion}
           enableDof={enableDof}
+          onBootReady={onBootReady}
         />
       </Canvas>
     </div>

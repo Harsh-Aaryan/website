@@ -39,7 +39,7 @@ export default function App() {
   const zoomParam = readZoomParam()
 
   const [stage, setStage] = useState(() => {
-    if (skipStored || reduced) return 'os'
+    if (skipStored) return 'os'
     if (zoomParam != null && zoomParam > 0) return 'zooming'
     return 'loading'
   })
@@ -49,12 +49,7 @@ export default function App() {
   const [ready3d, setReady3d] = useState(!threeD)
   const [loadProgress, setLoadProgress] = useState(8)
   const [overlayOn, setOverlayOn] = useState(() => (zoomParam ?? 0) >= 0.9)
-  const [sceneOn, setSceneOn] = useState(() => {
-    if (!threeD) return false
-    if (skipStored || reduced) return false
-    return zoomParam != null && zoomParam > 0
-  })
-  const zoomRef = useRef(skipStored || reduced ? 1 : zoomParam ?? 0)
+  const zoomRef = useRef(skipStored ? 1 : zoomParam ?? 0)
   const overlayOnRef = useRef((zoomParam ?? 0) >= 0.9)
   const zoomRaf = useRef(0)
 
@@ -64,15 +59,17 @@ export default function App() {
     applyTheme(themeId)
   }, [themeId])
 
-  useEffect(() => {
-    if (threeD && (stage === 'boot' || stage === 'zooming')) setSceneOn(true)
-  }, [stage, threeD])
+  const showLanding = stage === 'loading' || stage === 'boot' || stage === 'zooming'
 
   useEffect(() => {
     if (stage !== 'loading') return
-    const timer = setTimeout(() => setStage('boot'), TIMING.loadingMinMs)
-    return () => clearTimeout(timer)
-  }, [stage])
+    if (threeD && loadProgress < 92) {
+      const fallback = window.setTimeout(() => setStage('boot'), 8000)
+      return () => window.clearTimeout(fallback)
+    }
+    const timer = window.setTimeout(() => setStage('boot'), TIMING.loadingMinMs)
+    return () => window.clearTimeout(timer)
+  }, [loadProgress, stage, threeD])
 
   const persistSkip = () => {
     try {
@@ -154,7 +151,6 @@ export default function App() {
     })
   }
 
-  const showLanding = stage === 'loading' || stage === 'boot' || stage === 'zooming'
   const osProps = {
     themeId,
     muted,
@@ -163,7 +159,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <main className="app" id="os-main">
       <a className="skip-link" href="#os-main">
         Skip to content
       </a>
@@ -171,25 +167,19 @@ export default function App() {
       {showLanding && threeD && (
         <>
           <div className="room-fallback" aria-hidden="true" />
-          {sceneOn && (
-            <Suspense fallback={<LoadingScreen progress={loadProgress} compact />}>
-              <CRTScene
-                zoomRef={zoomRef}
-                onReady={() => setReady3d(true)}
-                onProgress={setLoadProgress}
-                bootRunning={stage === 'boot' || stage === 'loading'}
-                reducedMotion={reduced}
-                revealed={ready3d}
-                enableDof={stage !== 'zooming'}
-              />
-            </Suspense>
-          )}
+          <Suspense fallback={<LoadingScreen progress={loadProgress} compact />}>
+            <CRTScene
+              zoomRef={zoomRef}
+              onReady={() => setReady3d(true)}
+              onProgress={setLoadProgress}
+              bootRunning={stage === 'boot'}
+              reducedMotion={reduced}
+              revealed={ready3d}
+              enableDof={false}
+              onBootReady={startZoom}
+            />
+          </Suspense>
         </>
-      )}
-      {stage === 'boot' && threeD && (
-        <div className={ready3d ? 'visually-hidden' : 'boot-on-room'}>
-          <BootScreen running onReady={startZoom} reduced={reduced} />
-        </div>
       )}
       {stage === 'loading' && threeD && <LoadingScreen progress={loadProgress} compact />}
 
@@ -217,6 +207,6 @@ export default function App() {
           SKIP INTRO
         </button>
       )}
-    </div>
+    </main>
   )
 }

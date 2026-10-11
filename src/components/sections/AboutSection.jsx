@@ -18,13 +18,13 @@ export default function AboutSection() {
         </div>
         <div className="meta-row">
           <span className="k">GITHUB</span>
-          <a href={PROFILE.githubUrl} target="_blank" rel="noreferrer">
+          <a href={PROFILE.githubUrl} target="_blank" rel="noopener noreferrer">
             {PROFILE.githubLabel}
           </a>
         </div>
         <div className="meta-row">
           <span className="k">WEBSITE</span>
-          <a href={PROFILE.websiteUrl} target="_blank" rel="noreferrer">
+          <a href={PROFILE.websiteUrl} target="_blank" rel="noopener noreferrer">
             {PROFILE.websiteLabel}
           </a>
         </div>

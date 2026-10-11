@@ -1,10 +1,10 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { TIMING } from '../config'
 import { BOOT_LINES } from '../content'
 
 /** Amber BIOS text painted onto a CanvasTexture for the CRT glass. */
-export function useBootTexture({ running, reduced }) {
+export function useBootTexture({ running, reduced, onReady }) {
   const canvas = useMemo(() => {
     const el = document.createElement('canvas')
     el.width = 1024
@@ -23,10 +23,23 @@ export function useBootTexture({ running, reduced }) {
     return tex
   }, [canvas])
 
+  const onReadyRef = useRef(onReady)
+  onReadyRef.current = onReady
+
   useEffect(() => {
     const ctx = canvas.getContext('2d')
     let cancelled = false
     let intervalId = 0
+    let holdId = 0
+    let finished = false
+
+    const finish = () => {
+      if (cancelled || finished || !running) return
+      finished = true
+      const hold = new URLSearchParams(window.location.search).get('hold') === '1'
+      if (hold) return
+      holdId = window.setTimeout(() => onReadyRef.current?.(), reduced ? 0 : TIMING.bootHoldMs)
+    }
 
     const paintBackground = () => {
       ctx.fillStyle = '#120c06'
@@ -44,11 +57,11 @@ export function useBootTexture({ running, reduced }) {
     }
 
     const paintVignette = () => {
-      const edge = ctx.createRadialGradient(512, 384, 210, 512, 384, 540)
+      const edge = ctx.createRadialGradient(512, 384, 280, 512, 384, 620)
       edge.addColorStop(0, 'rgba(8, 6, 3, 0)')
-      edge.addColorStop(0.58, 'rgba(8, 6, 3, 0.1)')
-      edge.addColorStop(0.82, 'rgba(6, 4, 2, 0.42)')
-      edge.addColorStop(1, 'rgba(4, 2, 1, 0.92)')
+      edge.addColorStop(0.72, 'rgba(8, 6, 3, 0.04)')
+      edge.addColorStop(0.9, 'rgba(6, 4, 2, 0.16)')
+      edge.addColorStop(1, 'rgba(4, 2, 1, 0.38)')
       ctx.fillStyle = edge
       ctx.fillRect(0, 0, canvas.width, canvas.height)
     }
@@ -72,6 +85,7 @@ export function useBootTexture({ running, reduced }) {
       }
       paintVignette()
       texture.needsUpdate = true
+      if (count >= BOOT_LINES.length) finish()
     }
 
     const start = () => {
@@ -105,6 +119,7 @@ export function useBootTexture({ running, reduced }) {
     return () => {
       cancelled = true
       window.clearInterval(intervalId)
+      window.clearTimeout(holdId)
     }
   }, [canvas, reduced, running, texture])
 

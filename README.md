@@ -47,7 +47,7 @@ Copy (bio, jobs, projects, skills, links) is in `src/content.js` only.
 
 Returning visitors who finish or skip the intro are sent straight to the desktop (`localStorage` key `harsh-os-skip-intro`). Theme and mute are remembered the same way.
 
-`prefers-reduced-motion` skips the dolly, flicker, and boot typing.
+`prefers-reduced-motion` still runs the intro, but skips the dolly, flicker, and boot typing (boot text appears at once, then a short handoff).
 
 ## 3D landing assets
 
@@ -55,11 +55,11 @@ The desktop intro is a photoreal CRT on a dark desk in a night room. Models and 
 
 | Asset | Author | Source | License | In repo |
 | --- | --- | --- | --- | --- |
-| Television 02 | Benny Weimer | https://polyhaven.com/a/television_02 | CC0 1.0 | `public/assets/scene/television_02.glb` (~154KB meshopt + WebP ≤1K) |
-| Unfinished Office Night (1K env) | Sergej Majboroda | https://polyhaven.com/a/unfinished_office_night | CC0 1.0 | `public/assets/scene/unfinished_office_night_1k.jpg` |
-| Modern Buildings Night | Greg Zaal | https://polyhaven.com/a/modern_buildings_night | CC0 1.0 | `public/assets/scene/modern_buildings_night.webp` |
-| Dark Wood | Dario Barresi, Dimitrios Savva, Rico Cilliers | https://polyhaven.com/a/dark_wood | CC0 1.0 | `public/assets/scene/dark_wood_*_1k.webp` |
-| Painted Plaster Wall | Amal Kumar | https://polyhaven.com/a/painted_plaster_wall | CC0 1.0 | `public/assets/scene/painted_plaster_wall_*_1k.webp` |
+| Television 02 | Benny Weimer | https://polyhaven.com/a/television_02 | CC0 1.0 | `public/assets/scene/r1/television_02.glb` (~154KB meshopt + WebP ≤1K) |
+| Unfinished Office Night (1K env) | Sergej Majboroda | https://polyhaven.com/a/unfinished_office_night | CC0 1.0 | `public/assets/scene/r1/unfinished_office_night_1k.jpg` |
+| Modern Buildings Night | Greg Zaal | https://polyhaven.com/a/modern_buildings_night | CC0 1.0 | `public/assets/scene/r1/modern_buildings_night.webp` |
+| Dark Wood | Dario Barresi, Dimitrios Savva, Rico Cilliers | https://polyhaven.com/a/dark_wood | CC0 1.0 | `public/assets/scene/r1/dark_wood_*_1k.webp` |
+| Painted Plaster Wall | Amal Kumar | https://polyhaven.com/a/painted_plaster_wall | CC0 1.0 | `public/assets/scene/r1/painted_plaster_wall_diff_1k.webp` |
 
 The landing monitor is Poly Haven **Television 02** by Benny Weimer (CC0) — a photoreal vintage CRT. Sketchfab has CC-BY computer CRTs but `/v3/models/{id}/download` returns 401 without a token.
 

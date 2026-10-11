@@ -20,15 +20,19 @@ const BODIES = {
   credits: CreditsSection,
 }
 
-const TASKBAR_H = 40
+const TITLEBAR_H = 28
 const CASCADE_WRAP = 4
 
+function taskbarHeight() {
+  return window.innerWidth <= 768 ? 48 : 40
+}
+
 function clampWindowPos(x, y) {
-  const maxX = Math.max(16, window.innerWidth - 280)
-  const maxY = Math.max(8, window.innerHeight - TASKBAR_H - 160)
+  const maxX = Math.max(0, window.innerWidth - 96)
+  const maxY = Math.max(0, window.innerHeight - taskbarHeight() - TITLEBAR_H)
   return {
     x: Math.min(Math.max(0, x), maxX),
-    y: Math.min(Math.max(8, y), maxY),
+    y: Math.min(Math.max(0, y), maxY),
   }
 }
 
@@ -137,16 +141,33 @@ export default function OperatingSystem({
         <nav
           className="icon-grid"
           aria-label="Desktop icons"
-          hidden={mobile && windows.length > 0}
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(event) => {
+            const ids = SECTIONS.map((section) => section.id)
+            const index = Math.max(0, ids.indexOf(selectedIcon))
+            if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+              event.preventDefault()
+              const next = ids[Math.min(ids.length - 1, index + 1)]
+              setSelectedIcon(next)
+              document.querySelector(`[data-icon="${next}"]`)?.focus()
+            } else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+              event.preventDefault()
+              const next = ids[Math.max(0, index - 1)]
+              setSelectedIcon(next)
+              document.querySelector(`[data-icon="${next}"]`)?.focus()
+            }
+          }}
         >
           {SECTIONS.map((section) => (
             <button
               key={section.id}
               type="button"
+              data-icon={section.id}
               className={`desktop-icon ${selectedIcon === section.id ? 'is-selected' : ''}`}
-              onClick={() => setSelectedIcon(section.id)}
-              onDoubleClick={() => openWindow(section.id)}
+              onClick={() => {
+                setSelectedIcon(section.id)
+                openWindow(section.id)
+              }}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault()

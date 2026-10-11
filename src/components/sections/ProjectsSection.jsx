@@ -20,13 +20,13 @@ export default function ProjectsSection() {
           <p>
             {project.live && (
               <>
-                Live: <a href={project.live.url} target="_blank" rel="noreferrer">{project.live.label}</a>
+                Live: <a href={project.live.url} target="_blank" rel="noopener noreferrer">{project.live.label}</a>
               </>
             )}
             {project.live && project.repo && ' | '}
             {project.repo && (
               <>
-                Repo: <a href={project.repo.url} target="_blank" rel="noreferrer">{project.repo.label}</a>
+                Repo: <a href={project.repo.url} target="_blank" rel="noopener noreferrer">{project.repo.label}</a>
               </>
             )}
           </p>

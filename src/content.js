@@ -6,8 +6,8 @@ export const PROFILE = {
   phone: '425-209-8017',
   githubLabel: 'github.com/Harsh-Aaryan',
   githubUrl: 'https://github.com/Harsh-Aaryan',
-  websiteLabel: 'harshaaryan.tech',
-  websiteUrl: 'https://harshaaryan.tech',
+  websiteLabel: 'harshaaryan.netlify.app',
+  websiteUrl: 'https://harshaaryan.netlify.app',
   resumeFile: 'Harsh_Aaryan_Resume.pdf',
   resumeHref: '/Harsh_Aaryan_Resume.pdf',
 }

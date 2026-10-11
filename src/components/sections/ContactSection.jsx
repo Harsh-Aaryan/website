@@ -28,7 +28,7 @@ export default function ContactSection() {
 
       <h2 className="heading">Get in touch</h2>
       {LINKS.map((item) => (
-        <a key={item.label} className="contact-row" href={item.href} target={item.href.startsWith('http') || item.href.endsWith('.pdf') ? '_blank' : undefined} rel="noreferrer">
+        <a key={item.label} className="contact-row" href={item.href} target={item.href.startsWith('http') || item.href.endsWith('.pdf') ? '_blank' : undefined} rel="noopener noreferrer">
           <span className="k">{item.label}</span>
           <span>{item.value}</span>
         </a>

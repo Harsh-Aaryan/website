@@ -10,7 +10,7 @@ export default function CreditsSection() {
           <strong>{item.title}</strong>
           <span>
             {item.author} — {item.license} —{' '}
-            <a href={item.source} target="_blank" rel="noreferrer">
+            <a href={item.source} target="_blank" rel="noopener noreferrer">
               {item.source.replace('https://', '')}
             </a>
             {item.note ? ` (${item.note})` : ''}

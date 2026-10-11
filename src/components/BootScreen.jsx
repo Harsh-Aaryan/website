@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { TIMING } from '../config'
 import { BOOT_LINES } from '../content'
 
 export default function BootScreen({ running, onReady, reduced }) {
   const [count, setCount] = useState(reduced ? BOOT_LINES.length : 1)
+  const boxRef = useRef(null)
   const ready = count >= BOOT_LINES.length
 
   useEffect(() => {
@@ -34,8 +35,34 @@ export default function BootScreen({ running, onReady, reduced }) {
     }
   }, [onReady, ready, reduced, running])
 
+  useEffect(() => {
+    boxRef.current?.focus()
+    const onKey = (event) => {
+      if (event.key !== 'Tab') return
+      const dialog = boxRef.current
+      const skip = document.querySelector('.skip-intro-btn')
+      const cycle = [dialog, skip].filter(Boolean)
+      if (!cycle.length) return
+      event.preventDefault()
+      const index = cycle.indexOf(document.activeElement)
+      const next = event.shiftKey
+        ? cycle[(index - 1 + cycle.length) % cycle.length]
+        : cycle[(index + 1) % cycle.length]
+      next.focus()
+    }
+    document.addEventListener('keydown', onKey, true)
+    return () => document.removeEventListener('keydown', onKey, true)
+  }, [])
+
   return (
-    <div className="boot-screen" role="dialog" aria-label="HARSH.OS boot">
+    <div
+      ref={boxRef}
+      className="boot-screen"
+      role="dialog"
+      aria-modal="true"
+      aria-label="HARSH.OS boot"
+      tabIndex={-1}
+    >
       {BOOT_LINES.slice(0, count).map((line, index) => (
         <div key={`${line}-${index}`} className="boot-line">
           {line || '\u00a0'}

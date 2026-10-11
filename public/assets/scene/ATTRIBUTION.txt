@@ -4,28 +4,28 @@
    Author: Benny Weimer
    Source: https://polyhaven.com/a/television_02
    License: CC0 1.0
-   File: television_02.glb (meshopt + WebP textures ≤1K)
+   File: r1/television_02.glb (meshopt + WebP textures ≤1K)
 
 2. Unfinished Office Night HDRI
    Author: Sergej Majboroda
    Source: https://polyhaven.com/a/unfinished_office_night
    License: CC0 1.0
-   File: unfinished_office_night_1k.jpg (1K equirect JPEG env)
+   File: r1/unfinished_office_night_1k.jpg (1K equirect JPEG env)
 
 3. Modern Buildings Night
    Author: Greg Zaal
    Source: https://polyhaven.com/a/modern_buildings_night
    License: CC0 1.0
-   File: modern_buildings_night.webp (window backplate)
+   File: r1/modern_buildings_night.webp (window backplate)
 
 4. Dark Wood (desk PBR)
    Authors: Dario Barresi, Dimitrios Savva, Rico Cilliers
    Source: https://polyhaven.com/a/dark_wood
    License: CC0 1.0
-   Files: dark_wood_*_1k.webp
+   Files: r1/dark_wood_*_1k.webp
 
 5. Painted Plaster Wall
    Author: Amal Kumar
    Source: https://polyhaven.com/a/painted_plaster_wall
    License: CC0 1.0
-   Files: painted_plaster_wall_*_1k.webp
+   File: r1/painted_plaster_wall_diff_1k.webp (albedo only)

@@ -5,7 +5,7 @@ export default function ResumeSection() {
     <article>
       <h1 className="section-title">Resume</h1>
       <p>
-        <a href={PROFILE.resumeHref} target="_blank" rel="noreferrer">
+        <a href={PROFILE.resumeHref} target="_blank" rel="noopener noreferrer">
           Open {PROFILE.resumeFile}
         </a>
       </p>
