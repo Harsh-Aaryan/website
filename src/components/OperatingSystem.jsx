@@ -144,7 +144,14 @@ export default function OperatingSystem({
         return
       }
       const focused = document.activeElement
-      if (focused?.closest?.('.window') || focused?.closest?.('.start-menu') || focused?.closest?.('.taskbar')) return
+      if (focused?.closest?.('.start-menu') || focused?.closest?.('.taskbar')) return
+      const win = focused?.closest?.('.window')
+      if (win) {
+        event.preventDefault()
+        const id = win.dataset.windowId
+        if (id) closeWindow(id)
+        return
+      }
       if (onZoomOut) {
         event.preventDefault()
         onZoomOut()
@@ -152,7 +159,7 @@ export default function OperatingSystem({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [interactive, menuOpen, onZoomOut])
+  }, [closeWindow, interactive, menuOpen, onZoomOut])
 
   return (
     <div

@@ -36,7 +36,7 @@ function endCamForAspect(aspect, look) {
   const safe = Math.max(0.42, aspect)
   const half = (END_FOV * Math.PI) / 360
   const fov = safe >= 1 ? END_FOV : Math.min(52, (2 * Math.atan(Math.tan(half) / safe) * 180) / Math.PI)
-  const dist = safe >= 1 ? 0.80 : 1.00
+  const dist = safe >= 1 ? 0.80 : 0.95
   return {
     pos: [look[0], look[1], look[2] + dist],
     look,
@@ -488,6 +488,32 @@ function WindowWash() {
   )
 }
 
+function SafeComposer({ enableDof }) {
+  const { gl } = useThree()
+  const alive = useRef(true)
+  useEffect(() => {
+    alive.current = true
+    return () => {
+      alive.current = false
+    }
+  }, [])
+  if (!alive.current || !gl?.domElement?.isConnected) return null
+  return (
+    <EffectComposer disableNormalPass multisampling={0}>
+      <Bloom intensity={0.08} luminanceThreshold={0.92} mipmapBlur />
+      {enableDof && (
+        <DepthOfField
+          focusDistance={0.014}
+          focalLength={0.012}
+          bokehScale={1.1}
+        />
+      )}
+      <Noise opacity={0.018} />
+      <Vignette offset={0.52} darkness={0.16} />
+    </EffectComposer>
+  )
+}
+
 function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady, onGlassRect }) {
   const glassCenterRef = useRef(GLASS_LOOK)
   const bootMap = useBootTexture({
@@ -539,18 +565,7 @@ function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady, on
       <ContactShadows position={[0, 0.001, 0.08]} opacity={0.55} scale={3.6} blur={2.2} far={1.2} color="#000" />
       <Dust />
       <CameraRig zoomRef={zoomRef} glassCenterRef={glassCenterRef} />
-      <EffectComposer disableNormalPass multisampling={0}>
-        <Bloom intensity={0.08} luminanceThreshold={0.92} mipmapBlur />
-        {enableDof && (
-          <DepthOfField
-            focusDistance={0.014}
-            focalLength={0.012}
-            bokehScale={1.1}
-          />
-        )}
-        <Noise opacity={0.018} />
-          <Vignette offset={0.52} darkness={0.16} />
-      </EffectComposer>
+      <SafeComposer enableDof={enableDof} />
     </>
   )
 }
@@ -580,6 +595,9 @@ export default function CRTScene({
           outputColorSpace: THREE.SRGBColorSpace,
         }}
         camera={{ position: START_CAM.pos, fov: START_CAM.fov }}
+        onCreated={({ gl }) => {
+          gl.domElement.addEventListener('webglcontextlost', (event) => event.preventDefault())
+        }}
       >
         <LoadBridge onProgress={onProgress} onReady={onReady} />
         <Scene

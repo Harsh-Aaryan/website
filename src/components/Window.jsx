@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
+const bodyScroll = new Map()
+
 export default function Window({
   id,
   title,
@@ -14,7 +16,19 @@ export default function Window({
   mobile,
 }) {
   const drag = useRef(null)
+  const bodyRef = useRef(null)
   const [grabbing, setGrabbing] = useState(false)
+
+  useEffect(() => {
+    const el = bodyRef.current
+    if (!el) return
+    if (bodyScroll.has(id)) el.scrollTop = bodyScroll.get(id)
+    const onScroll = () => {
+      bodyScroll.set(id, el.scrollTop)
+    }
+    el.addEventListener('scroll', onScroll)
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [id])
 
   useEffect(() => {
     const move = (event) => {
@@ -50,6 +64,7 @@ export default function Window({
   return (
     <section
       className={`window ${active ? 'is-active' : ''} ${grabbing ? 'is-dragging' : ''}`}
+      data-window-id={id}
       style={
         mobile
           ? { zIndex: z }
@@ -66,7 +81,7 @@ export default function Window({
           {title}
         </h2>
       </header>
-      <div className="window-body">{children}</div>
+      <div className="window-body" ref={bodyRef}>{children}</div>
     </section>
   )
 }

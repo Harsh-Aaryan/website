@@ -99,6 +99,8 @@ export default function App() {
   const overlayRef = useRef(null)
   const glassRectRef = useRef(null)
   const zoomRaf = useRef(0)
+  const zoomLock = useRef(false)
+  const welcomed = useRef(false)
   const stageRef = useRef(stage)
   const startButtonRef = useRef(null)
   const parkedRef = useRef(null)
@@ -133,27 +135,46 @@ export default function App() {
     }
   }
 
+  const goStage = useCallback((next) => {
+    stageRef.current = next
+    setStage(next)
+  }, [])
+
+  const welcomeOs = useCallback(() => {
+    if (welcomed.current) return
+    welcomed.current = true
+    announce('HARSH.OS')
+    window.setTimeout(() => startButtonRef.current?.focus(), 40)
+  }, [announce])
+
   const finishToOs = useCallback(() => {
+    zoomLock.current = false
     zoomRef.current = 1
     overlayOnRef.current = true
     setOverlayOn(true)
     setOsMounted(true)
     persistSkip()
-    setStage('os')
-    announce('HARSH.OS')
-    window.setTimeout(() => startButtonRef.current?.focus(), 40)
-  }, [announce])
+    goStage('os')
+    welcomeOs()
+  }, [goStage, welcomeOs])
+
+  useEffect(() => {
+    if (stage === 'os') welcomeOs()
+  }, [stage, welcomeOs])
 
   const startZoom = useCallback(() => {
     const nowStage = stageRef.current
+    if (zoomLock.current) return
     if (nowStage !== 'boot' && nowStage !== 'parked') return
+    zoomLock.current = true
+    cancelAnimationFrame(zoomRaf.current)
     if (reduced || !threeD) {
       zoomRef.current = 1
       overlayOnRef.current = true
       setOsMounted(true)
       setOverlayOn(true)
-      setStage('os')
-      announce('HARSH.OS')
+      goStage('os')
+      welcomeOs()
       window.requestAnimationFrame(() => {
         const el = overlayRef.current
         if (!el) return
@@ -163,10 +184,13 @@ export default function App() {
           el.style.opacity = '1'
         })
       })
-      window.setTimeout(() => startButtonRef.current?.focus(), TIMING.crossfadeMs)
+      window.setTimeout(() => {
+        zoomLock.current = false
+        startButtonRef.current?.focus()
+      }, TIMING.crossfadeMs)
       return
     }
-    setStage('zooming')
+    goStage('zooming')
     const from = zoomRef.current
     const start = performance.now()
     const tick = (now) => {
@@ -186,10 +210,12 @@ export default function App() {
       }
     }
     zoomRaf.current = requestAnimationFrame(tick)
-  }, [announce, finishToOs, reduced, threeD])
+  }, [finishToOs, goStage, reduced, threeD, welcomeOs])
 
   const startZoomOut = useCallback(() => {
+    if (zoomLock.current) return
     if (stageRef.current !== 'os') return
+    zoomLock.current = true
     cancelAnimationFrame(zoomRaf.current)
     announce('Zoomed out to monitor. Press any key to return.')
     if (reduced || !threeD) {
@@ -198,6 +224,7 @@ export default function App() {
         el.classList.add('is-crossfade')
         el.style.opacity = '0'
       }
+      goStage('zooming')
       window.setTimeout(() => {
         if (el) {
           el.classList.remove('is-crossfade')
@@ -206,12 +233,13 @@ export default function App() {
         zoomRef.current = 0
         overlayOnRef.current = false
         setOverlayOn(false)
-        setStage('parked')
+        zoomLock.current = false
+        goStage('parked')
         window.setTimeout(() => parkedRef.current?.focus(), 40)
       }, TIMING.crossfadeMs)
       return
     }
-    setStage('zooming')
+    goStage('zooming')
     const from = zoomRef.current || 1
     const start = performance.now()
     const tick = (now) => {
@@ -225,12 +253,13 @@ export default function App() {
       } else {
         overlayOnRef.current = false
         setOverlayOn(false)
-        setStage('parked')
+        zoomLock.current = false
+        goStage('parked')
         window.setTimeout(() => parkedRef.current?.focus(), 40)
       }
     }
     zoomRaf.current = requestAnimationFrame(tick)
-  }, [announce, reduced, threeD])
+  }, [announce, goStage, reduced, threeD])
 
   useEffect(() => () => cancelAnimationFrame(zoomRaf.current), [])
 
@@ -253,6 +282,7 @@ export default function App() {
       event.key === 'CapsLock' ||
       event.key === 'Escape'
     const go = (event) => {
+      if (zoomLock.current || stageRef.current !== 'parked') return
       if (event.type === 'keydown' && ignore(event)) return
       startZoom()
     }
@@ -266,14 +296,14 @@ export default function App() {
 
   const skipIntro = () => {
     cancelAnimationFrame(zoomRaf.current)
+    zoomLock.current = false
     persistSkip()
     zoomRef.current = 1
     overlayOnRef.current = true
     setOverlayOn(true)
     setOsMounted(true)
-    setStage('os')
-    announce('HARSH.OS')
-    window.setTimeout(() => startButtonRef.current?.focus(), 40)
+    goStage('os')
+    welcomeOs()
   }
 
   const toggleTheme = () => {
@@ -310,7 +340,10 @@ export default function App() {
   }
 
   const overlayVisible = osMounted && stage !== 'parked' && (overlayOn || stage === 'os')
-  const showSkip = (stage === 'loading' || stage === 'boot' || stage === 'zooming') && !overlayOn && stage !== 'parked'
+  const showSkip =
+    !osMounted &&
+    (stage === 'loading' || stage === 'boot' || stage === 'zooming') &&
+    !overlayOn
 
   return (
     <main className="app" id="os-main">
@@ -376,7 +409,16 @@ export default function App() {
       )}
 
       {stage === 'parked' && (
-        <button ref={parkedRef} type="button" className="visually-hidden" onClick={startZoom}>
+        <button
+          ref={parkedRef}
+          type="button"
+          className="visually-hidden"
+          onPointerDown={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            startZoom()
+          }}
+        >
           Press any key to return to HARSH.OS
         </button>
       )}

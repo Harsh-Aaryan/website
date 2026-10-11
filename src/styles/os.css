@@ -866,8 +866,8 @@
   }
 
   .icon-grid {
-    flex-direction: row;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     overflow: visible;
     max-width: calc(100% - 16px);
     top: 8px;
@@ -876,9 +876,8 @@
   }
 
   .desktop-icon {
-    width: 96px;
-    flex: 0 0 calc(33.33% - 8px);
-    max-width: 100px;
+    width: auto;
+    max-width: none;
   }
 
   .desktop-icon-label {
