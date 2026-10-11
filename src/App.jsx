@@ -307,11 +307,11 @@ export default function App() {
     zoomRaf.current = window.requestAnimationFrame(step)
     beatRef.current = window.setInterval(() => {
       advanceZoom()
-    }, 50)
+    }, 32)
     const remain = Math.max(0, motionRef.current.duration - (performance.now() - motionRef.current.start))
     doneTimer.current = window.setTimeout(() => {
       advanceZoom()
-    }, remain + 16)
+    }, remain)
   }, [advanceZoom])
 
   const beginZoom = useCallback(
@@ -481,7 +481,6 @@ export default function App() {
   }, [overlayOn, stage])
 
   useEffect(() => {
-    if (stage !== 'parked') return
     const ignore = (event) =>
       event.metaKey ||
       event.ctrlKey ||
@@ -504,7 +503,7 @@ export default function App() {
       window.removeEventListener('keydown', go)
       window.removeEventListener('pointerdown', go)
     }
-  }, [stage, startZoom])
+  }, [startZoom])
 
   const skipIntro = () => {
     stopPump()

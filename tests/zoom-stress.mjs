@@ -98,10 +98,11 @@ async function waitStage(page, want, ms = LIMIT_MS) {
     await page.waitForFunction(
       (stage) => {
         const d = window.__crtDebug
-        return Boolean(d && d.stage === stage && d.lock === false)
+        const el = document.querySelector('#os-main')
+        return Boolean(d && d.stage === stage && d.lock === false && el?.dataset.stage === stage)
       },
       want,
-      { timeout: ms }
+      { timeout: ms, polling: 50 }
     )
   } catch {
     const last = await debug(page)
