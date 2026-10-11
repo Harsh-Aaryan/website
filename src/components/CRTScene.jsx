@@ -24,7 +24,7 @@ const GLASS_OPEN = 0.82
 /** Fallback plane before the GLTF bbox is known, model space. */
 const GLASS_PLANE = [0.312, 0.226]
 /** Target fill of the limiting axis. Ultrawide is height-capped. */
-const LANDSCAPE_FILL = 0.86
+const LANDSCAPE_FILL = 0.88
 const PORTRAIT_DIST = 0.95
 
 function glassWorldSize(plane = GLASS_PLANE) {

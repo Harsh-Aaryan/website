@@ -140,12 +140,16 @@ export default function App() {
     setStage(next)
   }, [])
 
-  const welcomeOs = useCallback(() => {
-    if (welcomed.current) return
+  const landOnOs = useCallback(() => {
     welcomed.current = true
     announce('HARSH.OS')
     window.setTimeout(() => startButtonRef.current?.focus(), 40)
   }, [announce])
+
+  const welcomeOs = useCallback(() => {
+    if (welcomed.current) return
+    landOnOs()
+  }, [landOnOs])
 
   const finishToOs = useCallback(() => {
     zoomLock.current = false
@@ -155,8 +159,8 @@ export default function App() {
     setOsMounted(true)
     persistSkip()
     goStage('os')
-    welcomeOs()
-  }, [goStage, welcomeOs])
+    landOnOs()
+  }, [goStage, landOnOs])
 
   useEffect(() => {
     if (stage === 'os') welcomeOs()
@@ -174,7 +178,7 @@ export default function App() {
       setOsMounted(true)
       setOverlayOn(true)
       goStage('os')
-      welcomeOs()
+      landOnOs()
       window.requestAnimationFrame(() => {
         const el = overlayRef.current
         if (!el) return
@@ -210,7 +214,7 @@ export default function App() {
       }
     }
     zoomRaf.current = requestAnimationFrame(tick)
-  }, [finishToOs, goStage, reduced, threeD, welcomeOs])
+  }, [finishToOs, goStage, landOnOs, reduced, threeD])
 
   const startZoomOut = useCallback(() => {
     if (zoomLock.current) return
@@ -303,7 +307,7 @@ export default function App() {
     setOverlayOn(true)
     setOsMounted(true)
     goStage('os')
-    welcomeOs()
+    landOnOs()
   }
 
   const toggleTheme = () => {
