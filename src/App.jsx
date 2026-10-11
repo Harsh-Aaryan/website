@@ -46,7 +46,10 @@ export default function App() {
 
   useEffect(() => {
     if (stage !== 'loading') return
-    if (threeD && !ready3d) return
+    if (threeD && !ready3d) {
+      const fallback = setTimeout(() => setStage('boot'), 4500)
+      return () => clearTimeout(fallback)
+    }
     const timer = setTimeout(() => setStage('boot'), threeD ? 380 : TIMING.loadingMinMs)
     return () => clearTimeout(timer)
   }, [ready3d, stage, threeD])

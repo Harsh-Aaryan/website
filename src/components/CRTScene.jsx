@@ -200,7 +200,7 @@ function Desk() {
 }
 
 function LoadBridge({ onProgress, onReady }) {
-  const { progress } = useProgress()
+  const { progress, active, loaded } = useProgress()
   const readyRef = useRef(false)
   const onReadyRef = useRef(onReady)
   const onProgressRef = useRef(onProgress)
@@ -208,12 +208,13 @@ function LoadBridge({ onProgress, onReady }) {
   onProgressRef.current = onProgress
 
   useEffect(() => {
-    onProgressRef.current?.(progress)
-    if (progress >= 99 && !readyRef.current) {
+    onProgressRef.current?.(Math.max(progress, loaded > 0 ? progress : 8))
+    if (readyRef.current) return
+    if (!active && progress >= 99 && loaded > 0) {
       readyRef.current = true
       onReadyRef.current?.()
     }
-  }, [progress])
+  }, [active, loaded, progress])
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -221,7 +222,7 @@ function LoadBridge({ onProgress, onReady }) {
         readyRef.current = true
         onReadyRef.current?.()
       }
-    }, 5000)
+    }, 4000)
     return () => window.clearTimeout(id)
   }, [])
 

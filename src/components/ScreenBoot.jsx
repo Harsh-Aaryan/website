@@ -79,10 +79,14 @@ export function useBootTexture({ running, reduced }) {
       }, TIMING.bootLineMs)
     }
 
+    start()
     if (document.fonts?.ready) {
-      document.fonts.ready.then(start)
-    } else {
-      start()
+      document.fonts.ready.then(() => {
+        if (!cancelled && !running) {
+          paintBackground()
+          texture.needsUpdate = true
+        }
+      })
     }
 
     return () => {
