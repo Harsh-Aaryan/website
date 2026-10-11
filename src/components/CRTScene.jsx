@@ -16,7 +16,7 @@ const TV_SCALE = 1.55
 const TV_YAW = 0.18
 
 const START_CAM = { pos: [0.68, 0.48, 1.42], look: [0.0, 0.28, 0.02], fov: 30 }
-const END_CAM = { pos: [0.06, 0.40, 0.55], look: [0.0, 0.34, 0.10], fov: 30 }
+const END_CAM = { pos: [0.10, 0.38, 0.72], look: [0.0, 0.30, 0.08], fov: 32 }
 
 /** PerspectiveCamera.fov is vertical — widen slightly on tall frames. */
 function startCamForAspect(aspect) {
@@ -153,14 +153,14 @@ function VintageCRT({ bootMap }) {
         renderOrder={3}
       >
         <meshPhysicalMaterial
-          color="#c5d0da"
-          roughness={0.14}
+          color="#c8c2b6"
+          roughness={0.16}
           metalness={0}
           transparent
-          opacity={0.07}
-          clearcoat={0.65}
-          clearcoatRoughness={0.32}
-          envMapIntensity={0.32}
+          opacity={0.05}
+          clearcoat={0.55}
+          clearcoatRoughness={0.36}
+          envMapIntensity={0.2}
           depthWrite={false}
         />
       </mesh>
@@ -409,7 +409,7 @@ function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady }) 
       <Dust />
       <CameraRig zoomRef={zoomRef} />
       <EffectComposer disableNormalPass multisampling={0}>
-        <Bloom intensity={0.12} luminanceThreshold={0.88} mipmapBlur />
+        <Bloom intensity={0.08} luminanceThreshold={0.92} mipmapBlur />
         {enableDof && (
           <DepthOfField
             focusDistance={0.014}

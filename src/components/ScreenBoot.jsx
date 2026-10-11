@@ -68,9 +68,9 @@ export function useBootTexture({ running, reduced, onReady }) {
       ctx.font = '40px VT323, "IBM Plex Mono", ui-monospace, monospace'
       ctx.textBaseline = 'top'
       const padX = Math.round(canvas.width * 0.16)
-      const lineH = 44
-      const blockH = BOOT_LINES.length * lineH + 36
-      const padY = Math.round((canvas.height - blockH) / 2)
+      const lineH = 42
+      const blockH = BOOT_LINES.length * lineH + 32
+      const padY = Math.round(canvas.height * 0.2)
       let y = padY
       BOOT_LINES.slice(0, count).forEach((line) => {
         ctx.fillText(line || ' ', padX, y)
