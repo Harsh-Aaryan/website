@@ -43,10 +43,11 @@ export function useBootTexture({ running, reduced }) {
     }
 
     const paintVignette = () => {
-      const edge = ctx.createRadialGradient(512, 384, 250, 512, 384, 560)
+      const edge = ctx.createRadialGradient(512, 384, 210, 512, 384, 540)
       edge.addColorStop(0, 'rgba(8, 6, 3, 0)')
-      edge.addColorStop(0.7, 'rgba(8, 6, 3, 0.12)')
-      edge.addColorStop(1, 'rgba(6, 4, 2, 0.82)')
+      edge.addColorStop(0.58, 'rgba(8, 6, 3, 0.1)')
+      edge.addColorStop(0.82, 'rgba(6, 4, 2, 0.42)')
+      edge.addColorStop(1, 'rgba(4, 2, 1, 0.92)')
       ctx.fillStyle = edge
       ctx.fillRect(0, 0, canvas.width, canvas.height)
     }

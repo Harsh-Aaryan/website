@@ -57,7 +57,7 @@ export default function App() {
   useEffect(() => {
     if (stage !== 'loading') return
     if (threeD && !ready3d) {
-      const fallback = setTimeout(() => setStage('boot'), 4500)
+      const fallback = setTimeout(() => setStage('boot'), 1800)
       return () => clearTimeout(fallback)
     }
     const timer = setTimeout(() => setStage('boot'), threeD ? 380 : TIMING.loadingMinMs)
@@ -179,16 +179,20 @@ export default function App() {
       </a>
 
       {showLanding && threeD && (
-        <Suspense fallback={<div className="room-fallback"><LoadingScreen progress={loadProgress} compact /></div>}>
-          <CRTScene
-            zoom={zoom}
-            onScreenRect={setScreenRect}
-            onReady={() => setReady3d(true)}
-            onProgress={setLoadProgress}
-            bootRunning={stage === 'boot'}
-            reducedMotion={reduced}
-          />
-        </Suspense>
+        <>
+          <div className="room-fallback" aria-hidden="true" />
+          <Suspense fallback={<LoadingScreen progress={loadProgress} compact />}>
+            <CRTScene
+              zoom={zoom}
+              onScreenRect={setScreenRect}
+              onReady={() => setReady3d(true)}
+              onProgress={setLoadProgress}
+              bootRunning={stage === 'boot' || stage === 'loading'}
+              reducedMotion={reduced}
+              revealed={ready3d}
+            />
+          </Suspense>
+        </>
       )}
       {stage === 'boot' && threeD && (
         <div className="visually-hidden">

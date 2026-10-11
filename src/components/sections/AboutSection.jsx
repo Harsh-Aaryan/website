@@ -59,7 +59,7 @@ export default function AboutSection() {
       </div>
 
       <h2 className="heading">3D scene credits</h2>
-      <p className="section-sub">Landing CRT uses CC0 assets from Poly Haven.</p>
+      <p className="section-sub">Landing CRT uses CC0 assets (Polyy.AI + Poly Haven).</p>
       {SCENE_CREDITS.map((item) => (
         <div key={item.title} className="meta-row">
           <span className="k">{item.title}</span>
