@@ -1,4 +1,4 @@
-import { SCENE_CREDITS } from '../../content'
+import { SCENE_CREDITS } from '../content'
 
 export default function CreditsSection() {
   return (
