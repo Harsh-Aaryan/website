@@ -65,11 +65,11 @@ export function useBootTexture({ running, reduced, onReady }) {
       ctx.shadowBlur = 0
       // White glyphs × emissive #FFB000 keep phosphor exact (toneMapped false).
       ctx.fillStyle = '#FFFFFF'
-      ctx.font = '36px VT323, "IBM Plex Mono", ui-monospace, monospace'
+      ctx.font = '28px VT323, "IBM Plex Mono", ui-monospace, monospace'
       ctx.textBaseline = 'top'
-      const padX = Math.round(canvas.width * 0.15)
-      const lineH = 36
-      const blockH = BOOT_LINES.length * lineH + 24
+      const padX = Math.round(canvas.width * 0.12)
+      const lineH = 32
+      const blockH = BOOT_LINES.length * lineH + 22
       const padY = Math.round((canvas.height - blockH) / 2)
       let y = padY
       BOOT_LINES.slice(0, count).forEach((line) => {

@@ -18,13 +18,14 @@ const TV_YAW = 0.18
 const START_CAM = { pos: [0.68, 0.48, 1.42], look: [0.0, 0.28, 0.02], fov: 30 }
 const END_CAM = { pos: [0.0, 0.41, 0.76], look: [0.0, 0.41, 0.05], fov: 26 }
 
-/** PerspectiveCamera.fov is vertical — widen slightly on tall frames. */
+/** PerspectiveCamera.fov is vertical — pull back and widen on tall frames. */
 function startCamForAspect(aspect) {
-  const safe = Math.max(0.45, aspect)
+  const safe = Math.max(0.42, aspect)
   if (safe >= 1) return START_CAM
   return {
-    ...START_CAM,
-    fov: Math.min(40, START_CAM.fov * (1.15 / safe)),
+    pos: [0.22, START_CAM.pos[1], START_CAM.pos[2] + (safe < 0.75 ? 0.55 : 0.28)],
+    look: START_CAM.look,
+    fov: Math.min(48, START_CAM.fov * (1.45 / safe)),
   }
 }
 

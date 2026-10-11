@@ -15,13 +15,16 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-[[redirects]]
-  from = "/assets/*.js"
-  to = "/404.html"
-  status = 404
+[[headers]]
+  for = "/404.html"
+  [headers.values]
+    Cache-Control = "no-cache"
 
+# force=false (default): existing files 200, missing files 404.
+# /assets/*.js is not a valid Netlify splat, so a single /assets/* rule
+# must sit above the SPA rewrite.
 [[redirects]]
-  from = "/assets/*.css"
+  from = "/assets/*"
   to = "/404.html"
   status = 404
 

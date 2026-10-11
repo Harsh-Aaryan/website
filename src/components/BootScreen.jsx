@@ -25,12 +25,27 @@ export default function BootScreen({ running, onReady, reduced }) {
     if (!running || !ready) return
     const hold = new URLSearchParams(window.location.search).get('hold') === '1'
     const go = () => onReady()
+    const onKey = (event) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+      if (
+        event.key === 'Tab' ||
+        event.key === 'Shift' ||
+        event.key === 'Control' ||
+        event.key === 'Alt' ||
+        event.key === 'Meta' ||
+        event.key === 'CapsLock' ||
+        event.key === 'Escape'
+      ) {
+        return
+      }
+      go()
+    }
     const timer = hold ? 0 : window.setTimeout(go, reduced ? 0 : TIMING.bootHoldMs)
-    window.addEventListener('keydown', go)
+    window.addEventListener('keydown', onKey)
     window.addEventListener('pointerdown', go)
     return () => {
       if (timer) window.clearTimeout(timer)
-      window.removeEventListener('keydown', go)
+      window.removeEventListener('keydown', onKey)
       window.removeEventListener('pointerdown', go)
     }
   }, [onReady, ready, reduced, running])
