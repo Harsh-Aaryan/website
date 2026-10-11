@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { SECTIONS } from '../content'
 import PixelIcon from './PixelIcon'
 
@@ -14,6 +15,34 @@ export default function Taskbar({
   onToggleMute,
   clock,
 }) {
+  const itemRefs = useRef([])
+
+  useEffect(() => {
+    if (menuOpen) itemRefs.current[0]?.focus()
+  }, [menuOpen])
+
+  const onMenuKey = (event) => {
+    const items = itemRefs.current.filter(Boolean)
+    if (!items.length) return
+    const index = Math.max(0, items.indexOf(document.activeElement))
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      items[(index + 1) % items.length].focus()
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      items[(index - 1 + items.length) % items.length].focus()
+    } else if (event.key === 'Home') {
+      event.preventDefault()
+      items[0].focus()
+    } else if (event.key === 'End') {
+      event.preventDefault()
+      items[items.length - 1].focus()
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      onToggleMenu()
+    }
+  }
+
   return (
     <footer className="taskbar">
       <div className="start-wrap">
@@ -27,12 +56,15 @@ export default function Taskbar({
           HARSH.OS
         </button>
         {menuOpen && (
-          <div className="start-menu" role="menu">
-            {SECTIONS.map((section) => (
+          <div className="start-menu" role="menu" onKeyDown={onMenuKey}>
+            {SECTIONS.map((section, index) => (
               <button
                 key={section.id}
                 type="button"
                 role="menuitem"
+                ref={(el) => {
+                  itemRefs.current[index] = el
+                }}
                 onClick={() => onOpen(section.id)}
               >
                 <PixelIcon type={section.icon} size={16} />
@@ -43,13 +75,12 @@ export default function Taskbar({
         )}
       </div>
 
-      <div className="taskbar-tabs" role="tablist" aria-label="Open windows">
+      <div className="taskbar-tabs" aria-label="Open windows">
         {windows.map((win) => (
           <button
             key={win.id}
             type="button"
-            role="tab"
-            aria-selected={activeId === win.id}
+            aria-pressed={activeId === win.id}
             className={`taskbar-tab ${activeId === win.id ? 'is-active' : ''}`}
             onClick={() => onFocus(win.id)}
           >

@@ -92,63 +92,32 @@ function makeGlassSheen() {
   return tex
 }
 
-function CameraRig({ zoom, screenRef, onScreenRect }) {
-  const { camera, size } = useThree()
-  const lastRect = useRef(null)
+function CameraRig({ zoomRef }) {
+  const { camera } = useThree()
 
   useFrame(() => {
-    const t = zoom
+    const t = zoomRef?.current ?? 0
     const pos = lerp3(START_CAM.pos, END_CAM.pos, t)
     const look = lerp3(START_CAM.look, END_CAM.look, t)
     camera.position.set(pos[0], pos[1], pos[2])
     camera.fov = lerp(START_CAM.fov, END_CAM.fov, t)
     camera.lookAt(look[0], look[1], look[2])
     camera.updateProjectionMatrix()
-
-    if (!screenRef.current || !onScreenRect) return
-    const mesh = screenRef.current
-    const width = mesh.geometry.parameters?.width ?? SCREEN.size[0]
-    const height = mesh.geometry.parameters?.height ?? SCREEN.size[1]
-    const inset = 0.04
-    const corners = [
-      new THREE.Vector3((-width / 2) * (1 - inset), (-height / 2) * (1 - inset), 0),
-      new THREE.Vector3((width / 2) * (1 - inset), (-height / 2) * (1 - inset), 0),
-      new THREE.Vector3((width / 2) * (1 - inset), (height / 2) * (1 - inset), 0),
-      new THREE.Vector3((-width / 2) * (1 - inset), (height / 2) * (1 - inset), 0),
-    ].map((local) => {
-      const v = local.clone()
-      mesh.localToWorld(v)
-      v.project(camera)
-      return {
-        x: (v.x * 0.5 + 0.5) * size.width,
-        y: (-v.y * 0.5 + 0.5) * size.height,
-      }
-    })
-    const xs = corners.map((p) => p.x)
-    const ys = corners.map((p) => p.y)
-    const next = {
-      left: Math.min(...xs),
-      top: Math.min(...ys),
-      width: Math.max(...xs) - Math.min(...xs),
-      height: Math.max(...ys) - Math.min(...ys),
-    }
-    const prev = lastRect.current
-    if (
-      !prev ||
-      Math.abs(prev.left - next.left) > 0.75 ||
-      Math.abs(prev.top - next.top) > 0.75 ||
-      Math.abs(prev.width - next.width) > 0.75 ||
-      Math.abs(prev.height - next.height) > 0.75
-    ) {
-      lastRect.current = next
-      onScreenRect(next)
-    }
   })
 
   return null
 }
 
-function VintageCRT({ screenRef, bootMap }) {
+function NightEnv() {
+  const tex = useTexture('/assets/scene/unfinished_office_night_512.jpg')
+  useEffect(() => {
+    tex.mapping = THREE.EquirectangularReflectionMapping
+    tex.colorSpace = THREE.SRGBColorSpace
+  }, [tex])
+  return <Environment map={tex} environmentIntensity={0.12} background={false} />
+}
+
+function VintageCRT({ bootMap }) {
   const { scene } = useGLTF('/assets/scene/crt_monitor_beige.glb')
   const mask = useMemo(() => makeTubeMask(), [])
   const sheen = useMemo(() => makeGlassSheen(), [])
@@ -192,7 +161,6 @@ function VintageCRT({ screenRef, bootMap }) {
         <meshBasicMaterial color="#070503" />
       </mesh>
       <mesh
-        ref={screenRef}
         geometry={tubeGeo}
         position={SCREEN.position}
         renderOrder={2}
@@ -418,8 +386,7 @@ function LoadBridge({ onProgress, onReady }) {
   return null
 }
 
-function Scene({ zoom, onScreenRect, bootRunning, reducedMotion }) {
-  const screenRef = useRef()
+function Scene({ zoomRef, bootRunning, reducedMotion, enableDof }) {
   const bootMap = useBootTexture({ running: bootRunning, reduced: reducedMotion })
   const { scene } = useThree()
 
@@ -453,40 +420,48 @@ function Scene({ zoom, onScreenRect, bootRunning, reducedMotion }) {
         decay={2}
       />
       <spotLight
-        position={[0.18, 0.62, 0.78]}
-        angle={0.85}
-        penumbra={0.95}
-        intensity={0.42}
+        position={[0.92, 0.38, 0.54]}
+        angle={0.62}
+        penumbra={0.92}
+        intensity={0.28}
         color="#c47e24"
-        distance={1.6}
+        distance={1.8}
         decay={2}
       />
       <ambientLight intensity={0.06} color="#4a5560" />
-      <Environment files="/assets/scene/unfinished_office_night_1k.hdr" environmentIntensity={0.12} background={false} />
+      <NightEnv />
       <NightRoom />
       <Desk />
-      <VintageCRT screenRef={screenRef} bootMap={bootMap} />
+      <VintageCRT bootMap={bootMap} />
       <Keyboard />
       <ContactShadows position={[0, 0.001, 0.16]} opacity={0.7} scale={3.6} blur={2.2} far={1.2} color="#000" />
       <Dust />
-      <CameraRig zoom={zoom} screenRef={screenRef} onScreenRect={onScreenRect} />
-      {zoom < 0.92 && (
-        <EffectComposer disableNormalPass multisampling={0}>
-          <Bloom intensity={0.12} luminanceThreshold={0.88} mipmapBlur />
+      <CameraRig zoomRef={zoomRef} />
+      <EffectComposer disableNormalPass multisampling={0}>
+        <Bloom intensity={0.12} luminanceThreshold={0.88} mipmapBlur />
+        {enableDof && (
           <DepthOfField
             focusDistance={0.016}
             focalLength={0.012}
-            bokehScale={zoom > 0.25 ? 0.45 : 1.15}
+            bokehScale={1.15}
           />
-          <Noise opacity={0.018} />
-          <Vignette offset={0.28} darkness={0.55} />
-        </EffectComposer>
-      )}
+        )}
+        <Noise opacity={0.018} />
+        <Vignette offset={0.28} darkness={0.55} />
+      </EffectComposer>
     </>
   )
 }
 
-export default function CRTScene({ zoom, onScreenRect, onReady, onProgress, bootRunning, reducedMotion, revealed }) {
+export default function CRTScene({
+  zoomRef,
+  onReady,
+  onProgress,
+  bootRunning,
+  reducedMotion,
+  revealed,
+  enableDof,
+}) {
   return (
     <div className={`scene-layer scene-canvas ${revealed ? 'is-ready' : ''}`}>
       <Canvas
@@ -504,15 +479,12 @@ export default function CRTScene({ zoom, onScreenRect, onReady, onProgress, boot
       >
         <LoadBridge onProgress={onProgress} onReady={onReady} />
         <Scene
-          zoom={zoom}
-          onScreenRect={onScreenRect}
+          zoomRef={zoomRef}
           bootRunning={bootRunning}
           reducedMotion={reducedMotion}
+          enableDof={enableDof}
         />
       </Canvas>
     </div>
   )
 }
-
-useGLTF.preload('/assets/scene/crt_monitor_beige.glb')
-useGLTF.preload('/assets/scene/home_computer_keyboard.glb')

@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import {
   STORAGE,
   TIMING,
@@ -28,6 +28,10 @@ function readZoomParam() {
   return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : null
 }
 
+function easeZoom(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2
+}
+
 export default function App() {
   const skipStored = readStored(STORAGE.skipIntro, '') === '1'
   const reduced = prefersReducedMotion()
@@ -41,11 +45,17 @@ export default function App() {
   })
   const [themeId, setThemeId] = useState(() => readStored(STORAGE.theme, 'amber'))
   const [muted, setMuted] = useState(() => readStored(STORAGE.muted, '1') !== '0')
-  const [zoom, setZoom] = useState(skipStored || reduced ? 1 : zoomParam ?? 0)
-  const [screenRect, setScreenRect] = useState(null)
   const [flash, setFlash] = useState(false)
   const [ready3d, setReady3d] = useState(!threeD)
   const [loadProgress, setLoadProgress] = useState(8)
+  const [overlayOn, setOverlayOn] = useState(() => (zoomParam ?? 0) >= 0.9)
+  const [sceneOn, setSceneOn] = useState(() => {
+    if (!threeD) return false
+    if (skipStored || reduced) return false
+    return zoomParam != null && zoomParam > 0
+  })
+  const zoomRef = useRef(skipStored || reduced ? 1 : zoomParam ?? 0)
+  const overlayOnRef = useRef((zoomParam ?? 0) >= 0.9)
   const zoomRaf = useRef(0)
 
   useCrtAudio(!muted && stage !== 'loading')
@@ -55,14 +65,14 @@ export default function App() {
   }, [themeId])
 
   useEffect(() => {
+    if (threeD && (stage === 'boot' || stage === 'zooming')) setSceneOn(true)
+  }, [stage, threeD])
+
+  useEffect(() => {
     if (stage !== 'loading') return
-    if (threeD && !ready3d) {
-      const fallback = setTimeout(() => setStage('boot'), 1800)
-      return () => clearTimeout(fallback)
-    }
-    const timer = setTimeout(() => setStage('boot'), threeD ? 380 : TIMING.loadingMinMs)
+    const timer = setTimeout(() => setStage('boot'), TIMING.loadingMinMs)
     return () => clearTimeout(timer)
-  }, [ready3d, stage, threeD])
+  }, [stage])
 
   const persistSkip = () => {
     try {
@@ -73,8 +83,8 @@ export default function App() {
   }
 
   const finishToOs = useCallback(() => {
+    zoomRef.current = 1
     setFlash(true)
-    setZoom(1)
     persistSkip()
     window.setTimeout(() => {
       setFlash(false)
@@ -84,16 +94,22 @@ export default function App() {
 
   const startZoom = useCallback(() => {
     if (stage !== 'boot') return
-    if (reduced) {
-      finishToOs()
+    if (reduced || !threeD) {
+      setStage('zooming')
+      window.setTimeout(finishToOs, reduced ? 80 : TIMING.zoomMs)
       return
     }
     setStage('zooming')
+    overlayOnRef.current = false
     const start = performance.now()
     const tick = (now) => {
       const t = Math.min(1, (now - start) / TIMING.zoomMs)
-      const eased = t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2
-      setZoom(eased)
+      const eased = easeZoom(t)
+      zoomRef.current = eased
+      if (eased >= 0.9 && !overlayOnRef.current) {
+        overlayOnRef.current = true
+        setOverlayOn(true)
+      }
       if (t < 1) {
         zoomRaf.current = requestAnimationFrame(tick)
       } else {
@@ -101,14 +117,14 @@ export default function App() {
       }
     }
     zoomRaf.current = requestAnimationFrame(tick)
-  }, [finishToOs, reduced, stage])
+  }, [finishToOs, reduced, stage, threeD])
 
   useEffect(() => () => cancelAnimationFrame(zoomRaf.current), [])
 
   const skipIntro = () => {
     cancelAnimationFrame(zoomRaf.current)
     persistSkip()
-    setZoom(1)
+    zoomRef.current = 1
     setStage('os')
   }
 
@@ -137,40 +153,12 @@ export default function App() {
   }
 
   const showLanding = stage === 'loading' || stage === 'boot' || stage === 'zooming'
-  const overlayFull = stage === 'os' || zoom > 0.93
-
-  const overlayStyle = useMemo(() => {
-    if (overlayFull) return undefined
-    if (!screenRect) {
-      return { top: '22%', left: '22%', width: '56%', height: '42%' }
-    }
-    return {
-      top: `${screenRect.top}px`,
-      left: `${screenRect.left}px`,
-      width: `${screenRect.width}px`,
-      height: `${screenRect.height}px`,
-    }
-  }, [overlayFull, screenRect])
-
-  const os = (
-    <OperatingSystem
-      interactive={stage === 'os'}
-      themeId={themeId}
-      muted={muted}
-      onToggleTheme={toggleTheme}
-      onToggleMute={toggleMute}
-    />
-  )
-
-  const glass = (
-    <>
-      {stage === 'loading' && !threeD && <LoadingScreen progress={loadProgress} />}
-      {stage === 'boot' && !threeD && (
-        <BootScreen running onReady={startZoom} reduced={reduced} />
-      )}
-      {stage === 'zooming' && os}
-    </>
-  )
+  const osProps = {
+    themeId,
+    muted,
+    onToggleTheme: toggleTheme,
+    onToggleMute: toggleMute,
+  }
 
   return (
     <div className="app">
@@ -181,43 +169,44 @@ export default function App() {
       {showLanding && threeD && (
         <>
           <div className="room-fallback" aria-hidden="true" />
-          <Suspense fallback={<LoadingScreen progress={loadProgress} compact />}>
-            <CRTScene
-              zoom={zoom}
-              onScreenRect={setScreenRect}
-              onReady={() => setReady3d(true)}
-              onProgress={setLoadProgress}
-              bootRunning={stage === 'boot' || stage === 'loading'}
-              reducedMotion={reduced}
-              revealed={ready3d}
-            />
-          </Suspense>
+          {sceneOn && (
+            <Suspense fallback={<LoadingScreen progress={loadProgress} compact />}>
+              <CRTScene
+                zoomRef={zoomRef}
+                onReady={() => setReady3d(true)}
+                onProgress={setLoadProgress}
+                bootRunning={stage === 'boot' || stage === 'loading'}
+                reducedMotion={reduced}
+                revealed={ready3d}
+                enableDof={stage !== 'zooming'}
+              />
+            </Suspense>
+          )}
         </>
       )}
       {stage === 'boot' && threeD && (
-        <div className="visually-hidden">
+        <div className={ready3d ? 'visually-hidden' : 'boot-on-room'}>
           <BootScreen running onReady={startZoom} reduced={reduced} />
         </div>
       )}
       {stage === 'loading' && threeD && <LoadingScreen progress={loadProgress} compact />}
 
       {showLanding && !threeD && (
-        <FlatCRT zoom={zoom} stage={stage}>
-          {glass}
+        <FlatCRT stage={stage}>
+          {stage === 'loading' && <LoadingScreen progress={loadProgress} />}
+          {stage === 'boot' && <BootScreen running onReady={startZoom} reduced={reduced} />}
+          {stage === 'zooming' && <OperatingSystem interactive={false} {...osProps} />}
         </FlatCRT>
       )}
 
-      {showLanding && threeD && stage === 'zooming' && (
-        <div
-          className={`screen-overlay ${overlayFull ? 'is-full' : 'is-mapped'}`}
-          style={overlayStyle}
-        >
-          {glass}
+      {showLanding && threeD && stage === 'zooming' && overlayOn && (
+        <div className="screen-overlay is-full">
+          <OperatingSystem interactive={false} {...osProps} />
           {flash && <div className="handoff-flash" aria-hidden="true" />}
         </div>
       )}
 
-      {stage === 'os' && os}
+      {stage === 'os' && <OperatingSystem interactive {...osProps} />}
 
       {flash && stage !== 'os' && !threeD && <div className="handoff-flash" aria-hidden="true" />}
 

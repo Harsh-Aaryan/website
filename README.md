@@ -51,12 +51,12 @@ Returning visitors who finish or skip the intro are sent straight to the desktop
 
 ## 3D landing assets
 
-The desktop intro is a photoreal CRT on a dark desk in a night room. Models and textures are **CC0 1.0** from [Poly Haven](https://polyhaven.com/). Full notes: `public/assets/scene/ATTRIBUTION.txt`. Credits also appear in ABOUT.TXT.
+The desktop intro is a photoreal CRT on a dark desk in a night room. Models and textures are **CC0 1.0** from [Poly Haven](https://polyhaven.com/) and [Polyy.AI](https://polyyai.itch.io/3d-retro-tech-pack). Full notes: `public/assets/scene/ATTRIBUTION.txt`. Credits also appear in CREDITS.TXT on the HARSH.OS desktop.
 
 | Asset | Author | Source | License | In repo |
 | --- | --- | --- | --- | --- |
 | Beige CRT monitor + keyboard | Polyy.AI | https://polyyai.itch.io/3d-retro-tech-pack | CC0 1.0 | `public/assets/scene/crt_monitor_beige.glb`, `home_computer_keyboard.glb` |
-| Unfinished Office Night HDRI | Sergej Majboroda | https://polyhaven.com/a/unfinished_office_night | CC0 1.0 | `public/assets/scene/unfinished_office_night_1k.hdr` |
+| Unfinished Office Night (512px env) | Sergej Majboroda | https://polyhaven.com/a/unfinished_office_night | CC0 1.0 | `public/assets/scene/unfinished_office_night_512.jpg` |
 | Modern Buildings Night | Greg Zaal | https://polyhaven.com/a/modern_buildings_night | CC0 1.0 | `public/assets/scene/modern_buildings_night.webp` |
 | Dark Wood | Dario Barresi, Dimitrios Savva, Rico Cilliers | https://polyhaven.com/a/dark_wood | CC0 1.0 | `public/assets/scene/dark_wood_*_1k.webp` |
 | Painted Plaster Wall | Amal Kumar | https://polyhaven.com/a/painted_plaster_wall | CC0 1.0 | `public/assets/scene/painted_plaster_wall_*_1k.webp` |
@@ -75,4 +75,5 @@ src/components/CRTScene.jsx   lazy-loaded Three.js desk + monitor
 src/components/FlatCRT.jsx    2D bezel fallback / mobile
 src/components/OperatingSystem.jsx
 src/components/sections/      About, Projects, Skills, Resume, Contact
+src/components/CreditsSection.jsx  CREDITS.TXT (Poly Haven / Polyy.AI)
 ```

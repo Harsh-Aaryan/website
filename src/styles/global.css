@@ -15,7 +15,7 @@
   --shadow-color: #5c3f0a;
   --room-dark: #07090c;
   --room-light: #121418;
-  --taskbar-h: 36px;
+  --taskbar-h: 40px;
   --font-ui: 'VT323', monospace;
   --font-body: 'IBM Plex Mono', ui-monospace, monospace;
 }
@@ -58,7 +58,7 @@ a:hover {
 a:focus-visible,
 button:focus-visible,
 [tabindex='0']:focus-visible {
-  outline: 1px dotted var(--text-primary);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 

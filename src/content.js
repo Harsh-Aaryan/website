@@ -133,6 +133,7 @@ export const SECTIONS = [
   { id: 'skills', title: 'SKILLS.SYS', icon: 'file', kind: 'window' },
   { id: 'resume', title: 'RESUME.PDF', icon: 'doc', kind: 'window' },
   { id: 'contact', title: 'LINKS.LNK', icon: 'link', kind: 'window' },
+  { id: 'credits', title: 'CREDITS.TXT', icon: 'file', kind: 'window' },
 ]
 
 export const BOOT_LINES = [
@@ -163,7 +164,7 @@ export const SCENE_CREDITS = [
     author: 'Sergej Majboroda',
     source: 'https://polyhaven.com/a/unfinished_office_night',
     license: 'CC0 1.0',
-    note: 'Night office reflections',
+    note: 'Night office reflections (512px JPEG env)',
   },
   {
     title: 'Modern Buildings Night',

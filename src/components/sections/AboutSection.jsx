@@ -1,9 +1,9 @@
-import { ASCII_BANNER, EDUCATION, EXPERIENCE, INTERESTS, PROFILE, SCENE_CREDITS } from '../../content'
+import { ASCII_BANNER, EDUCATION, EXPERIENCE, INTERESTS, PROFILE } from '../../content'
 
 export default function AboutSection() {
   return (
     <article>
-      <pre className="ascii-art" aria-hidden="true">{ASCII_BANNER}</pre>
+      <pre className="ascii-art" aria-hidden="true" inert tabIndex={-1}>{ASCII_BANNER}</pre>
       <h1 className="section-title">{PROFILE.name}</h1>
       <p className="section-sub">{PROFILE.title}</p>
 
@@ -57,21 +57,6 @@ export default function AboutSection() {
           </div>
         ))}
       </div>
-
-      <h2 className="heading">3D scene credits</h2>
-      <p className="section-sub">Landing CRT uses CC0 assets (Polyy.AI + Poly Haven).</p>
-      {SCENE_CREDITS.map((item) => (
-        <div key={item.title} className="meta-row">
-          <span className="k">{item.title}</span>
-          <span>
-            {item.author} — {item.license} —{' '}
-            <a href={item.source} target="_blank" rel="noreferrer">
-              {item.source.replace('https://', '')}
-            </a>
-            {item.note ? ` (${item.note})` : ''}
-          </span>
-        </div>
-      ))}
     </article>
   )
 }

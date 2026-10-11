@@ -15,7 +15,7 @@
    Author: Sergej Majboroda
    Source: https://polyhaven.com/a/unfinished_office_night
    License: CC0 1.0
-   File: unfinished_office_night_1k.hdr
+   File: unfinished_office_night_512.jpg (downsampled equirect env)
 
 3. Modern Buildings Night
    Author: Greg Zaal

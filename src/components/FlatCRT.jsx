@@ -1,5 +1,4 @@
-export default function FlatCRT({ zoom, stage, children }) {
-  const scale = 1 + zoom * 1.35
+export default function FlatCRT({ stage, children }) {
   const isOs = stage === 'os'
 
   return (
@@ -10,14 +9,6 @@ export default function FlatCRT({ zoom, stage, children }) {
       <div className="flat-keyboard" />
       <div
         className={`crt-shell ${stage === 'zooming' ? 'is-zooming' : ''} ${isOs ? 'is-os' : ''}`}
-        style={
-          isOs
-            ? undefined
-            : {
-                transform: `scale(${scale})`,
-                transition: stage === 'zooming' ? 'transform 0.05s linear' : undefined,
-              }
-        }
       >
         <div className="crt-glass">{children}</div>
         {!isOs && (

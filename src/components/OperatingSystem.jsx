@@ -3,6 +3,7 @@ import { prefersReducedMotion } from '../config'
 import { SECTIONS } from '../content'
 import AboutSection from './sections/AboutSection'
 import ContactSection from './sections/ContactSection'
+import CreditsSection from './CreditsSection'
 import ProjectsSection from './sections/ProjectsSection'
 import ResumeSection from './sections/ResumeSection'
 import SkillsSection from './sections/SkillsSection'
@@ -16,6 +17,7 @@ const BODIES = {
   skills: SkillsSection,
   resume: ResumeSection,
   contact: ContactSection,
+  credits: CreditsSection,
 }
 
 function formatClock(date) {
@@ -71,8 +73,8 @@ export default function OperatingSystem({
           {
             id,
             title: meta.title,
-            x: 120 + prev.length * 28,
-            y: 24 + prev.length * 24,
+            x: 96 + prev.length * 56,
+            y: 18 + prev.length * 48,
             z: top,
           },
         ]
@@ -103,17 +105,11 @@ export default function OperatingSystem({
   useEffect(() => {
     if (!interactive) return
     const onKey = (event) => {
-      if (event.key === 'Escape') {
-        setMenuOpen(false)
-        return
-      }
-      if (event.key === 'Enter' && selectedIcon) {
-        openWindow(selectedIcon)
-      }
+      if (event.key === 'Escape') setMenuOpen(false)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [interactive, openWindow, selectedIcon])
+  }, [interactive])
 
   return (
     <div
