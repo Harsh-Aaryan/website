@@ -19,6 +19,17 @@ const START_CAM = { pos: [0.68, 0.48, 1.42], look: [0.0, 0.28, 0.02], fov: 30 }
 const END_FOV = 26
 /** Fallback glass center (yaw 0, scaled) until the bbox screen is known. */
 const GLASS_LOOK = [0.0, 0.45, 0.22]
+/** Visible opening vs the overlay plane (GlassTracker). */
+const GLASS_OPEN = 0.82
+/** Fallback plane before the GLTF bbox is known, model space. */
+const GLASS_PLANE = [0.312, 0.226]
+/** Target fill of the limiting axis. Ultrawide is height-capped. */
+const LANDSCAPE_FILL = 0.86
+const PORTRAIT_DIST = 0.95
+
+function glassWorldSize(plane = GLASS_PLANE) {
+  return [plane[0] * GLASS_OPEN * TV_SCALE, plane[1] * GLASS_OPEN * TV_SCALE]
+}
 
 /** PerspectiveCamera.fov is vertical — pull back and widen on tall frames. */
 function startCamForAspect(aspect) {
@@ -32,11 +43,22 @@ function startCamForAspect(aspect) {
 }
 
 /** Square-on end cam aimed at the glass center. Height-limited on landscape. */
-function endCamForAspect(aspect, look) {
+function endCamForAspect(aspect, look, glassSize) {
   const safe = Math.max(0.42, aspect)
   const half = (END_FOV * Math.PI) / 360
   const fov = safe >= 1 ? END_FOV : Math.min(52, (2 * Math.atan(Math.tan(half) / safe) * 180) / Math.PI)
-  const dist = safe >= 1 ? 0.80 : 0.95
+  if (safe < 1) {
+    return {
+      pos: [look[0], look[1], look[2] + PORTRAIT_DIST],
+      look,
+      fov,
+    }
+  }
+  const [gw, gh] = glassSize?.[0] ? glassSize : glassWorldSize()
+  const tanHalf = Math.tan(half)
+  const distH = gh / (2 * tanHalf * LANDSCAPE_FILL)
+  const distW = gw / (2 * tanHalf * safe * LANDSCAPE_FILL)
+  const dist = Math.max(distH, distW)
   return {
     pos: [look[0], look[1], look[2] + dist],
     look,
@@ -70,7 +92,7 @@ function curveGeometry(width, height, bend = 0.028) {
   return geo
 }
 
-function CameraRig({ zoomRef, glassCenterRef }) {
+function CameraRig({ zoomRef, glassCenterRef, glassSizeRef }) {
   const { camera, size } = useThree()
   const aspect = size.width / Math.max(1, size.height)
   const start = useMemo(() => startCamForAspect(aspect), [aspect])
@@ -78,7 +100,7 @@ function CameraRig({ zoomRef, glassCenterRef }) {
   useFrame(() => {
     const t = zoomRef?.current ?? 0
     const lookEnd = glassCenterRef?.current || GLASS_LOOK
-    const end = endCamForAspect(aspect, lookEnd)
+    const end = endCamForAspect(aspect, lookEnd, glassSizeRef?.current)
     const pos = lerp3(start.pos, end.pos, t)
     const look = lerp3(start.look, end.look, t)
     camera.position.set(pos[0], pos[1], pos[2])
@@ -135,8 +157,8 @@ function GlassTracker({ screen, onRect }) {
     }
     // Visible TV opening is tighter than the overlay plane. 0.82 of the
     // half-extents matches a ~70% pixel width at 800x1200 / zoom 0.89.
-    const phw = hw * 0.82
-    const phh = hh * 0.82
+    const phw = hw * GLASS_OPEN
+    const phh = hh * GLASS_OPEN
     const phosphorLocal = [
       [-phw, -phh],
       [phw, -phh],
@@ -188,7 +210,7 @@ function NightEnv() {
   return <Environment map={tex} environmentIntensity={0.3} background={false} />
 }
 
-function VintageCRT({ bootMap, onGlassRect, zoomRef, glassCenterRef }) {
+function VintageCRT({ bootMap, onGlassRect, zoomRef, glassCenterRef, glassSizeRef }) {
   const group = useRef()
   const { scene } = useGLTF('/assets/scene/r2/television_02.glb', false, true)
   const clone = useMemo(() => scene.clone(true), [scene])
@@ -206,6 +228,9 @@ function VintageCRT({ bootMap, onGlassRect, zoomRef, glassCenterRef }) {
         screen.position[1] * TV_SCALE,
         screen.position[2] * TV_SCALE,
       ]
+    }
+    if (glassSizeRef) {
+      glassSizeRef.current = glassWorldSize(screen.size)
     }
   })
 
@@ -516,6 +541,7 @@ function SafeComposer({ enableDof }) {
 
 function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady, onGlassRect }) {
   const glassCenterRef = useRef(GLASS_LOOK)
+  const glassSizeRef = useRef(glassWorldSize())
   const bootMap = useBootTexture({
     running: bootRunning,
     reduced: reducedMotion,
@@ -561,10 +587,11 @@ function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady, on
         onGlassRect={onGlassRect}
         zoomRef={zoomRef}
         glassCenterRef={glassCenterRef}
+        glassSizeRef={glassSizeRef}
       />
       <ContactShadows position={[0, 0.001, 0.08]} opacity={0.55} scale={3.6} blur={2.2} far={1.2} color="#000" />
       <Dust />
-      <CameraRig zoomRef={zoomRef} glassCenterRef={glassCenterRef} />
+      <CameraRig zoomRef={zoomRef} glassCenterRef={glassCenterRef} glassSizeRef={glassSizeRef} />
       <SafeComposer enableDof={enableDof} />
     </>
   )
