@@ -606,7 +606,8 @@
 .zoom-out-short { display: none; }
 
 .zoom-out-btn {
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
+  padding: 0 8px;
 }
 
 .start-menu button {
@@ -860,8 +861,9 @@
   }
 
   .desktop-icon {
-    width: 100px;
-    flex: 0 0 100px;
+    width: 96px;
+    flex: 0 0 calc(33.33% - 8px);
+    max-width: 100px;
   }
 
   .desktop-icon-label {
