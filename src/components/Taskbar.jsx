@@ -14,10 +14,17 @@ export default function Taskbar({
   muted,
   onToggleTheme,
   onToggleMute,
+  onZoomOut,
+  startButtonRef,
   clock,
 }) {
   const itemRefs = useRef([])
   const startRef = useRef(null)
+
+  const setStartRef = (el) => {
+    startRef.current = el
+    if (startButtonRef) startButtonRef.current = el
+  }
 
   useEffect(() => {
     if (menuOpen) itemRefs.current[0]?.focus()
@@ -60,7 +67,7 @@ export default function Taskbar({
     <footer className="taskbar">
       <div className="start-wrap" onBlur={onWrapBlur}>
         <button
-          ref={startRef}
+          ref={setStartRef}
           type="button"
           className={`start-button ${menuOpen ? 'is-open' : ''}`}
           aria-expanded={menuOpen}
@@ -85,6 +92,18 @@ export default function Taskbar({
                 {section.title}
               </button>
             ))}
+            {onZoomOut && (
+              <button
+                type="button"
+                role="menuitem"
+                ref={(el) => {
+                  itemRefs.current[SECTIONS.length] = el
+                }}
+                onClick={onZoomOut}
+              >
+                Shut down / Zoom out
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -104,6 +123,20 @@ export default function Taskbar({
       </div>
 
       <div className="taskbar-tray">
+        {onZoomOut && (
+          <button
+            type="button"
+            className="tray-btn zoom-out-btn"
+            onClick={onZoomOut}
+            aria-label="Zoom out to monitor"
+            title="Zoom out to monitor"
+          >
+            <span className="zoom-out-full">[ ZOOM OUT ]</span>
+            <span className="zoom-out-short" aria-hidden="true">
+              ⏻
+            </span>
+          </button>
+        )}
         <button
           type="button"
           className="tray-btn"

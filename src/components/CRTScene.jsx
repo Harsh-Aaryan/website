@@ -16,7 +16,8 @@ const TV_SCALE = 1.55
 const TV_YAW = 0.18
 
 const START_CAM = { pos: [0.68, 0.48, 1.42], look: [0.0, 0.28, 0.02], fov: 30 }
-const END_CAM = { pos: [0.0, 0.41, 0.76], look: [0.0, 0.41, 0.05], fov: 26 }
+/** Pulled back so the bezel and TV body stay in frame at zoom 1. */
+const END_CAM = { pos: [0.0, 0.36, 1.06], look: [0.0, 0.36, 0.05], fov: 28 }
 
 /** PerspectiveCamera.fov is vertical — pull back and widen on tall frames. */
 function startCamForAspect(aspect) {
@@ -29,14 +30,14 @@ function startCamForAspect(aspect) {
   }
 }
 
-/** Keep ~26° of horizontal coverage on portrait so the BIOS left column stays in frame. */
+/** Portrait: ~90% glass width with bezel still visible. */
 function endCamForAspect(aspect) {
   const safe = Math.max(0.42, aspect)
   if (safe >= 1) return END_CAM
   const half = (END_CAM.fov * Math.PI) / 360
-  const fov = Math.min(58, (2 * Math.atan(Math.tan(half) / safe) * 180) / Math.PI)
+  const fov = Math.min(52, (2 * Math.atan(Math.tan(half) / safe) * 180) / Math.PI)
   return {
-    pos: [END_CAM.pos[0], END_CAM.pos[1], END_CAM.pos[2] + 0.52],
+    pos: [END_CAM.pos[0], END_CAM.pos[1], END_CAM.pos[2] + 0.22],
     look: END_CAM.look,
     fov,
   }

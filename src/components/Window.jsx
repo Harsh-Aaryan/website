@@ -19,7 +19,9 @@ export default function Window({
   useEffect(() => {
     const move = (event) => {
       if (!drag.current) return
-      onMove(id, event.clientX - drag.current.dx, event.clientY - drag.current.dy)
+      const ox = drag.current.ox ?? 0
+      const oy = drag.current.oy ?? 0
+      onMove(id, event.clientX - ox - drag.current.dx, event.clientY - oy - drag.current.dy)
     }
     const up = () => {
       drag.current = null
@@ -37,7 +39,11 @@ export default function Window({
     if (mobile) return
     if (event.target.closest('.window-close')) return
     onFocus(id)
-    drag.current = { dx: event.clientX - x, dy: event.clientY - y }
+    const root = event.currentTarget.closest('.os-root')
+    const origin = root?.getBoundingClientRect()
+    const ox = origin?.left ?? 0
+    const oy = origin?.top ?? 0
+    drag.current = { dx: event.clientX - ox - x, dy: event.clientY - oy - y, ox, oy }
     setGrabbing(true)
   }
 

@@ -28,7 +28,7 @@ function readZoomParam() {
   return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : null
 }
 
-function easeZoom(t) {
+function easeInOut(t) {
   return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2
 }
 
@@ -52,38 +52,26 @@ function visibleGlassRect(rect) {
   }
 }
 
-function wipeProgress(zoom, aspect, box) {
-  const t = Math.min(1, Math.max(0, (zoom - 0.9) / 0.1))
-  const span = box ? box.width / Math.max(1, window.innerWidth) : 1
-  // Portrait and ultrawide start from a small glass; ease-out so 0.95 is ~full.
-  // 16:9 glass is already ≥88% wide, so it keeps the existing smoothstep wipe.
-  if (aspect < 1 || span < 0.88) {
-    return 1 - (1 - t) ** 4
-  }
-  return smoothstep(t)
-}
-
-function overlaySourceRect(rect, aspect) {
-  if (aspect < 1 && rect.screen) return visibleGlassRect(rect.screen)
+function glassBox(rect) {
+  if (rect?.screen) return visibleGlassRect(rect.screen)
   return visibleGlassRect(rect)
 }
 
 function applyOverlayRect(el, rect, zoom) {
   if (!el || !rect) return
-  const aspect = window.innerWidth / Math.max(1, window.innerHeight)
-  const box = overlaySourceRect(rect, aspect)
-  const u = wipeProgress(zoom, aspect, box)
-  const vw = window.innerWidth
-  const vh = window.innerHeight
-  el.style.left = `${box.left * (1 - u)}px`
-  el.style.top = `${box.top * (1 - u)}px`
-  el.style.width = `${box.width + (vw - box.width) * u}px`
-  el.style.height = `${box.height + (vh - box.height) * u}px`
-  // Hit 0 by ~0.93 so HARSH.OS / clock are never inside a tube mask.
-  const radiusU = Math.min(1, u / 0.28)
-  el.style.borderRadius = `${(8 * (1 - radiusU)).toFixed(1)}px`
-  el.classList.toggle('is-mapped', u < 0.995)
-  el.classList.toggle('is-full', u >= 0.995)
+  const box = glassBox(rect)
+  const wipe = smoothstep((zoom - 0.9) / 0.1)
+  el.style.left = `${box.left}px`
+  el.style.top = `${box.top}px`
+  el.style.width = `${box.width}px`
+  el.style.height = `${box.height}px`
+  const rad = Math.max(6, Math.min(box.width, box.height) * 0.026)
+  el.style.borderRadius = `${rad.toFixed(1)}px`
+  const hidden = (1 - wipe) * 100
+  el.style.clipPath = wipe >= 0.995 ? 'none' : `inset(0 0 ${hidden.toFixed(2)}% 0)`
+  el.style.opacity = wipe > 0.02 ? '1' : '0'
+  el.classList.toggle('is-framed', true)
+  el.classList.toggle('is-wiping', wipe > 0.02 && wipe < 0.995)
 }
 
 export default function App() {
@@ -94,20 +82,27 @@ export default function App() {
 
   const [stage, setStage] = useState(() => {
     if (skipStored) return 'os'
-    if (zoomParam != null && zoomParam > 0) return 'zooming'
+    if (zoomParam != null && zoomParam > 0 && zoomParam < 1) return 'zooming'
+    if (zoomParam === 1) return 'os'
+    if (zoomParam === 0) return 'boot'
     return 'loading'
   })
   const [themeId, setThemeId] = useState(() => readStored(STORAGE.theme, 'amber'))
   const [muted, setMuted] = useState(() => readStored(STORAGE.muted, '1') !== '0')
-  const [flash, setFlash] = useState(false)
   const [ready3d, setReady3d] = useState(!threeD)
   const [loadProgress, setLoadProgress] = useState(8)
-  const [overlayOn, setOverlayOn] = useState(() => (zoomParam ?? 0) >= 0.9)
+  const [overlayOn, setOverlayOn] = useState(() => (zoomParam ?? (skipStored ? 1 : 0)) >= 0.9)
+  const [osMounted, setOsMounted] = useState(() => skipStored || (zoomParam ?? 0) >= 0.9)
+  const [live, setLive] = useState('')
   const zoomRef = useRef(skipStored ? 1 : zoomParam ?? 0)
-  const overlayOnRef = useRef((zoomParam ?? 0) >= 0.9)
+  const overlayOnRef = useRef((zoomParam ?? (skipStored ? 1 : 0)) >= 0.9)
   const overlayRef = useRef(null)
   const glassRectRef = useRef(null)
   const zoomRaf = useRef(0)
+  const stageRef = useRef(stage)
+  const startButtonRef = useRef(null)
+  const parkedRef = useRef(null)
+  stageRef.current = stage
 
   useCrtAudio(!muted && stage !== 'loading')
 
@@ -115,7 +110,10 @@ export default function App() {
     applyTheme(themeId)
   }, [themeId])
 
-  const showLanding = stage === 'loading' || stage === 'boot' || stage === 'zooming'
+  const announce = useCallback((message) => {
+    setLive('')
+    window.requestAnimationFrame(() => setLive(message))
+  }, [])
 
   useEffect(() => {
     if (stage !== 'loading') return
@@ -137,33 +135,41 @@ export default function App() {
 
   const finishToOs = useCallback(() => {
     zoomRef.current = 1
-    setFlash(true)
+    overlayOnRef.current = true
+    setOverlayOn(true)
+    setOsMounted(true)
     persistSkip()
-    window.setTimeout(() => {
-      setFlash(false)
-      setStage('os')
-    }, TIMING.handoffFlashMs)
-  }, [])
+    setStage('os')
+    announce('HARSH.OS')
+    window.setTimeout(() => startButtonRef.current?.focus(), 40)
+  }, [announce])
 
   const startZoom = useCallback(() => {
-    if (stage !== 'boot') return
+    const nowStage = stageRef.current
+    if (nowStage !== 'boot' && nowStage !== 'parked') return
     if (reduced || !threeD) {
-      setStage('zooming')
-      window.setTimeout(finishToOs, reduced ? 80 : TIMING.zoomMs)
+      zoomRef.current = 1
+      overlayOnRef.current = true
+      setOverlayOn(true)
+      setOsMounted(true)
+      setStage('os')
+      announce('HARSH.OS')
+      window.setTimeout(() => startButtonRef.current?.focus(), 40)
       return
     }
     setStage('zooming')
-    overlayOnRef.current = false
+    const from = zoomRef.current
     const start = performance.now()
     const tick = (now) => {
-      const t = Math.min(1, (now - start) / TIMING.zoomMs)
-      const eased = easeZoom(t)
-      zoomRef.current = eased
-      if (eased >= 0.9 && !overlayOnRef.current) {
+      const t = Math.min(1, (now - start) / (nowStage === 'parked' ? TIMING.zoomOutMs : TIMING.zoomMs))
+      const eased = easeInOut(t)
+      zoomRef.current = from + (1 - from) * eased
+      if (zoomRef.current >= 0.9 && !overlayOnRef.current) {
         overlayOnRef.current = true
+        setOsMounted(true)
         setOverlayOn(true)
       }
-      applyOverlayRect(overlayRef.current, glassRectRef.current, eased)
+      applyOverlayRect(overlayRef.current, glassRectRef.current, zoomRef.current)
       if (t < 1) {
         zoomRaf.current = requestAnimationFrame(tick)
       } else {
@@ -171,20 +177,83 @@ export default function App() {
       }
     }
     zoomRaf.current = requestAnimationFrame(tick)
-  }, [finishToOs, reduced, stage, threeD])
+  }, [announce, finishToOs, reduced, threeD])
+
+  const startZoomOut = useCallback(() => {
+    if (stageRef.current !== 'os') return
+    cancelAnimationFrame(zoomRaf.current)
+    announce('Zoomed out to monitor. Press any key to return.')
+    if (reduced || !threeD) {
+      zoomRef.current = 0
+      overlayOnRef.current = false
+      setOverlayOn(false)
+      setStage('parked')
+      window.setTimeout(() => parkedRef.current?.focus(), 40)
+      return
+    }
+    setStage('zooming')
+    const from = zoomRef.current || 1
+    const start = performance.now()
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / TIMING.zoomOutMs)
+      const eased = easeInOut(t)
+      zoomRef.current = from * (1 - eased)
+      if (zoomRef.current < 0.9) overlayOnRef.current = true
+      applyOverlayRect(overlayRef.current, glassRectRef.current, zoomRef.current)
+      if (t < 1) {
+        zoomRaf.current = requestAnimationFrame(tick)
+      } else {
+        overlayOnRef.current = false
+        setOverlayOn(false)
+        setStage('parked')
+        window.setTimeout(() => parkedRef.current?.focus(), 40)
+      }
+    }
+    zoomRaf.current = requestAnimationFrame(tick)
+  }, [announce, reduced, threeD])
 
   useEffect(() => () => cancelAnimationFrame(zoomRaf.current), [])
 
   useEffect(() => {
-    if (!overlayOn) return
+    if (!overlayOn && stage !== 'os') return
     applyOverlayRect(overlayRef.current, glassRectRef.current, zoomRef.current)
-  }, [overlayOn])
+  }, [overlayOn, stage])
+
+  useEffect(() => {
+    if (stage !== 'parked') return
+    const ignore = (event) =>
+      event.metaKey ||
+      event.ctrlKey ||
+      event.altKey ||
+      event.key === 'Tab' ||
+      event.key === 'Shift' ||
+      event.key === 'Control' ||
+      event.key === 'Alt' ||
+      event.key === 'Meta' ||
+      event.key === 'CapsLock' ||
+      event.key === 'Escape'
+    const go = (event) => {
+      if (event.type === 'keydown' && ignore(event)) return
+      startZoom()
+    }
+    window.addEventListener('keydown', go)
+    window.addEventListener('pointerdown', go)
+    return () => {
+      window.removeEventListener('keydown', go)
+      window.removeEventListener('pointerdown', go)
+    }
+  }, [stage, startZoom])
 
   const skipIntro = () => {
     cancelAnimationFrame(zoomRaf.current)
     persistSkip()
     zoomRef.current = 1
+    overlayOnRef.current = true
+    setOverlayOn(true)
+    setOsMounted(true)
     setStage('os')
+    announce('HARSH.OS')
+    window.setTimeout(() => startButtonRef.current?.focus(), 40)
   }
 
   const toggleTheme = () => {
@@ -216,15 +285,23 @@ export default function App() {
     muted,
     onToggleTheme: toggleTheme,
     onToggleMute: toggleMute,
+    onZoomOut: startZoomOut,
+    startButtonRef,
   }
+
+  const overlayVisible = osMounted && stage !== 'parked' && (overlayOn || stage === 'os')
+  const showSkip = (stage === 'loading' || stage === 'boot' || stage === 'zooming') && !overlayOn && stage !== 'parked'
 
   return (
     <main className="app" id="os-main">
       <a className="skip-link" href="#os-main">
         Skip to content
       </a>
+      <div className="visually-hidden" aria-live="polite" aria-atomic="true">
+        {live}
+      </div>
 
-      {showLanding && threeD && (
+      {threeD && (
         <>
           <div className="room-fallback" aria-hidden="true" />
           <Suspense fallback={<LoadingScreen progress={loadProgress} compact />}>
@@ -234,13 +311,15 @@ export default function App() {
               onProgress={setLoadProgress}
               bootRunning={stage === 'boot'}
               reducedMotion={reduced}
-              revealed={ready3d}
+              revealed={ready3d || stage === 'os' || stage === 'parked'}
               enableDof={false}
               onBootReady={startZoom}
               onGlassRect={(rect) => {
                 glassRectRef.current = rect
                 window.__glassMetrics = rect
-                applyOverlayRect(overlayRef.current, rect, zoomRef.current)
+                if (overlayVisible || overlayOnRef.current) {
+                  applyOverlayRect(overlayRef.current, rect, zoomRef.current)
+                }
               }}
             />
           </Suspense>
@@ -248,25 +327,36 @@ export default function App() {
       )}
       {stage === 'loading' && threeD && <LoadingScreen progress={loadProgress} compact />}
 
-      {showLanding && !threeD && (
-        <FlatCRT stage={stage}>
+      {!threeD && (stage === 'loading' || stage === 'boot' || stage === 'zooming' || stage === 'parked') && (
+        <FlatCRT stage={stage === 'parked' ? 'boot' : stage}>
           {stage === 'loading' && <LoadingScreen progress={loadProgress} />}
-          {stage === 'boot' && <BootScreen running onReady={startZoom} reduced={reduced} />}
-          {stage === 'zooming' && <OperatingSystem interactive={false} {...osProps} />}
+          {(stage === 'boot' || stage === 'parked') && (
+            <BootScreen
+              running={stage === 'boot'}
+              onReady={startZoom}
+              reduced={reduced || stage === 'parked'}
+            />
+          )}
         </FlatCRT>
       )}
 
-      {showLanding && threeD && stage === 'zooming' && overlayOn && (
-        <div ref={overlayRef} className="screen-overlay is-mapped">
-          <OperatingSystem interactive={false} {...osProps} />
+      {osMounted && (
+        <div
+          ref={overlayRef}
+          className={threeD ? 'screen-overlay is-framed' : 'flat-os-bezel'}
+          hidden={!overlayVisible}
+        >
+          <OperatingSystem interactive={stage === 'os'} {...osProps} />
         </div>
       )}
 
-      {stage === 'os' && <OperatingSystem interactive {...osProps} />}
+      {stage === 'parked' && (
+        <button ref={parkedRef} type="button" className="visually-hidden" onClick={startZoom}>
+          Press any key to return to HARSH.OS
+        </button>
+      )}
 
-      {flash && stage !== 'os' && !threeD && <div className="handoff-flash" aria-hidden="true" />}
-
-      {showLanding && !overlayOn && (
+      {showSkip && (
         <button type="button" className="skip-intro-btn" onClick={skipIntro}>
           SKIP INTRO
         </button>

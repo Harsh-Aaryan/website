@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { prefersReducedMotion } from '../config'
 import { SECTIONS } from '../content'
 import AboutSection from './sections/AboutSection'
@@ -27,19 +27,26 @@ function taskbarHeight() {
   return window.innerWidth <= 768 ? 48 : 40
 }
 
-function clampWindowPos(x, y) {
-  const maxX = Math.max(0, window.innerWidth - 96)
-  const maxY = Math.max(0, window.innerHeight - taskbarHeight() - TITLEBAR_H)
+function readBounds(el) {
+  if (!el) return { width: window.innerWidth, height: window.innerHeight }
+  return { width: el.clientWidth, height: el.clientHeight }
+}
+
+function clampWindowPos(x, y, box) {
+  const width = box?.width ?? window.innerWidth
+  const height = box?.height ?? window.innerHeight
+  const maxX = Math.max(0, width - 96)
+  const maxY = Math.max(0, height - taskbarHeight() - TITLEBAR_H)
   return {
     x: Math.min(Math.max(0, x), maxX),
     y: Math.min(Math.max(0, y), maxY),
   }
 }
 
-function placeWindow(index) {
+function placeWindow(index, box) {
   const col = Math.floor(index / CASCADE_WRAP)
   const row = index % CASCADE_WRAP
-  return clampWindowPos(96 + row * 56 + col * 300, 18 + row * 48)
+  return clampWindowPos(96 + row * 56 + col * 300, 18 + row * 48, box)
 }
 
 function formatClock(date) {
@@ -53,7 +60,10 @@ export default function OperatingSystem({
   muted,
   onToggleTheme,
   onToggleMute,
+  onZoomOut,
+  startButtonRef,
 }) {
+  const rootRef = useRef(null)
   const [windows, setWindows] = useState(() => [
     { id: 'about', title: 'ABOUT.TXT', x: 128, y: 20, z: 2 },
   ])
@@ -65,7 +75,11 @@ export default function OperatingSystem({
 
   useEffect(() => {
     const id = window.setInterval(() => setClock(formatClock(new Date())), 1000)
-    const onResize = () => setMobile(window.innerWidth <= 768)
+    const onResize = () => {
+      setMobile(window.innerWidth <= 768)
+      const box = readBounds(rootRef.current)
+      setWindows((prev) => prev.map((win) => ({ ...win, ...clampWindowPos(win.x, win.y, box) })))
+    }
     window.addEventListener('resize', onResize)
     return () => {
       window.clearInterval(id)
@@ -89,7 +103,7 @@ export default function OperatingSystem({
       setWindows((prev) => {
         if (prev.some((win) => win.id === id)) return prev
         const top = prev.reduce((max, win) => Math.max(max, win.z), 1) + 1
-        const pos = placeWindow(prev.length)
+        const pos = placeWindow(prev.length, readBounds(rootRef.current))
         return [
           ...prev,
           {
@@ -115,7 +129,7 @@ export default function OperatingSystem({
   }, [])
 
   const moveWindow = useCallback((id, x, y) => {
-    const next = clampWindowPos(x, y)
+    const next = clampWindowPos(x, y, readBounds(rootRef.current))
     setWindows((prev) =>
       prev.map((win) => (win.id === id ? { ...win, ...next } : win))
     )
@@ -124,14 +138,25 @@ export default function OperatingSystem({
   useEffect(() => {
     if (!interactive) return
     const onKey = (event) => {
-      if (event.key === 'Escape') setMenuOpen(false)
+      if (event.key !== 'Escape') return
+      if (menuOpen) {
+        setMenuOpen(false)
+        return
+      }
+      const focused = document.activeElement
+      if (focused?.closest?.('.window') || focused?.closest?.('.start-menu')) return
+      if (onZoomOut) {
+        event.preventDefault()
+        onZoomOut()
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [interactive])
+  }, [interactive, menuOpen, onZoomOut])
 
   return (
     <div
+      ref={rootRef}
       className={`os-root ${prefersReducedMotion() ? 'reduce-motion' : ''}`}
       aria-hidden={!interactive}
       style={{ pointerEvents: interactive ? 'auto' : 'none' }}
@@ -214,6 +239,8 @@ export default function OperatingSystem({
         muted={muted}
         onToggleTheme={onToggleTheme}
         onToggleMute={onToggleMute}
+        onZoomOut={onZoomOut}
+        startButtonRef={startButtonRef}
         clock={clock}
       />
 

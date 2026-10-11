@@ -53,6 +53,7 @@ export const TIMING = {
   bootLineMs: 110,
   bootHoldMs: 280,
   zoomMs: 2600,
+  zoomOutMs: 1800,
   handoffFlashMs: 180,
   humGain: 0.012,
   humFreq: 58,
