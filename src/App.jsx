@@ -115,7 +115,7 @@ export default function App() {
 
   const announce = useCallback((message) => {
     setLive('')
-    window.requestAnimationFrame(() => setLive(message))
+    window.setTimeout(() => setLive(message), 40)
   }, [])
 
   useEffect(() => {
@@ -161,7 +161,7 @@ export default function App() {
     persistSkip()
     pendingLand.current = true
     goStage('os')
-    landOnOs()
+    window.setTimeout(() => landOnOs(), 0)
   }, [goStage, landOnOs])
 
   useEffect(() => {
