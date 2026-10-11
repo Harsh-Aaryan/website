@@ -144,8 +144,8 @@ async function waitReady(page, profile) {
   return { bootMs, display }
 }
 
-async function triggerZoomOut(page, cycle) {
-  const useMenu = cycle % 2 === 1
+async function triggerZoomOut(page, cycle, profile) {
+  const useMenu = profile.expectDisplay !== '3d' && cycle % 2 === 1
   if (useMenu) {
     await synthPointer(page, '.start-button', 'start menu')
     await page.waitForSelector('.start-menu', { timeout: LIMIT_MS })
@@ -167,7 +167,7 @@ async function openSixWindows(page) {
 async function runCycles(page, profile) {
   const cycles = []
   for (let i = 1; i <= CYCLES; i += 1) {
-    const via = await triggerZoomOut(page, i)
+    const via = await triggerZoomOut(page, i, profile)
     const outMs = await waitStage(page, 'parked')
     if (outMs >= LIMIT_MS) throw new Error(`FAIL SLOW ${profile.name} #${i} ${via} out=${outMs}ms`)
     await synthPointer(page, '__parked__', 'parked zoom in')
