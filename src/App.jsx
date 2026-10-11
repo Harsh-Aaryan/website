@@ -199,6 +199,10 @@ export default function App() {
         el.style.opacity = '0'
       }
       window.setTimeout(() => {
+        if (el) {
+          el.classList.remove('is-crossfade')
+          el.style.opacity = '1'
+        }
         zoomRef.current = 0
         overlayOnRef.current = false
         setOverlayOn(false)

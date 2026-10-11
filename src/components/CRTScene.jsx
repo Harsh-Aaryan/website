@@ -36,7 +36,7 @@ function endCamForAspect(aspect, look) {
   const safe = Math.max(0.42, aspect)
   const half = (END_FOV * Math.PI) / 360
   const fov = safe >= 1 ? END_FOV : Math.min(52, (2 * Math.atan(Math.tan(half) / safe) * 180) / Math.PI)
-  const dist = safe >= 1 ? 0.98 : 1.20
+  const dist = safe >= 1 ? 0.80 : 1.00
   return {
     pos: [look[0], look[1], look[2] + dist],
     look,
