@@ -1,0 +1,60 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* Amber phosphor palette */
+  --screen-bg: #0E0A05;
+  --text-primary: #FFB000;
+  --text-dim: #B37A00;
+  --text-muted: #5C3F0A;
+  --accent-link: #FFD27A;
+  --glow-amber: rgba(255, 176, 0, 0.35);
+  
+  /* Room scene colors */
+  --room-dark: #07090C;
+  --room-light: #121418;
+  
+  /* Green alternative palette */
+  --green-primary: #33FF66;
+  --green-dim: #1FA344;
+  --green-muted: #0B4A1E;
+  --green-bg: #050A06;
+  
+  /* Shadow and effects */
+  --shadow-color: #5C3F0A;
+  --glow: rgba(255, 176, 0, 0.35);
+}
+
+body {
+  font-family: 'IBM Plex Mono', monospace;
+  background: var(--room-dark);
+  color: var(--text-primary);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.pixel-font {
+  font-family: 'VT323', monospace;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

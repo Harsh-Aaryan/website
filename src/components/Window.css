@@ -1,0 +1,146 @@
+.window {
+  position: absolute;
+  min-width: 500px;
+  max-width: 800px;
+  min-height: 400px;
+  max-height: 80vh;
+  background: var(--screen-bg);
+  border: 1px solid var(--text-dim);
+  box-shadow: 4px 4px 0 var(--shadow-color);
+  font-family: 'IBM Plex Mono', monospace;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.window.active {
+  border-color: var(--text-primary);
+  z-index: 10;
+}
+
+.window.dragging {
+  user-select: none;
+  cursor: grabbing;
+}
+
+.window-title-bar {
+  background: var(--screen-bg);
+  border-bottom: 1px solid var(--text-primary);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: grab;
+  position: relative;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 1px,
+    var(--text-muted) 1px,
+    var(--text-muted) 2px
+  );
+}
+
+.window.dragging .window-title-bar {
+  cursor: grabbing;
+}
+
+.window-close {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0;
+  width: 28px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s ease;
+}
+
+.window-close:hover {
+  background: var(--text-primary);
+  color: var(--screen-bg);
+}
+
+.window-close:focus {
+  outline: 1px dotted var(--text-primary);
+  outline-offset: 2px;
+}
+
+.window-title {
+  flex: 1;
+  text-align: center;
+  font-family: 'VT323', monospace;
+  font-size: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--text-primary);
+  color: var(--screen-bg);
+  padding: 2px 16px;
+  display: inline-block;
+  margin: 0 auto;
+}
+
+.window:not(.active) .window-title {
+  background: var(--text-dim);
+}
+
+.window-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-primary) var(--screen-bg);
+}
+
+.window-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.window-content::-webkit-scrollbar-track {
+  background: var(--screen-bg);
+  border-left: 1px solid var(--text-muted);
+}
+
+.window-content::-webkit-scrollbar-thumb {
+  background: var(--text-primary);
+  border: 1px solid var(--text-primary);
+}
+
+.window-content::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-link);
+}
+
+@media (max-width: 768px) {
+  .window {
+    position: static !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    height: calc(100vh - 48px) !important;
+    min-height: 0;
+    max-height: none;
+    box-shadow: none;
+    border: none;
+    border-bottom: 1px solid var(--text-primary);
+  }
+
+  .window-title-bar {
+    cursor: default;
+  }
+
+  .window-content {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .window-content {
+    padding: 12px;
+  }
+}
