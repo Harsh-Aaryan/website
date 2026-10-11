@@ -1,4 +1,5 @@
 import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import {
   STORAGE,
   TIMING,
@@ -159,9 +160,10 @@ export default function App() {
     }
   }
 
-  const goStage = useCallback((next) => {
+  const goStage = useCallback((next, sync = false) => {
     stageRef.current = next
-    setStage(next)
+    if (sync) flushSync(() => setStage(next))
+    else setStage(next)
   }, [])
 
   const publishDebug = useCallback(() => {
@@ -257,10 +259,17 @@ export default function App() {
       if (target === 'parked') {
         zoomRef.current = 0
         overlayOnRef.current = false
-        setOverlayOn(false)
-        setOsMounted(true)
         if (el && !use3dRef.current) el.style.opacity = '1'
-        goStage('parked')
+        const park = () => {
+          setOverlayOn(false)
+          setOsMounted(true)
+          goStage('parked')
+        }
+        try {
+          flushSync(park)
+        } catch {
+          park()
+        }
         window.setTimeout(() => parkedRef.current?.focus(), 40)
         publishDebug()
         return
@@ -268,12 +277,19 @@ export default function App() {
 
       zoomRef.current = 1
       overlayOnRef.current = true
-      setOverlayOn(true)
-      setOsMounted(true)
       persistSkip()
       if (el && !use3dRef.current) el.style.opacity = '1'
       pendingLand.current = true
-      goStage('os')
+      const land = () => {
+        setOverlayOn(true)
+        setOsMounted(true)
+        goStage('os')
+      }
+      try {
+        flushSync(land)
+      } catch {
+        land()
+      }
       landOnOs()
       publishDebug()
     },
@@ -326,7 +342,7 @@ export default function App() {
         duration,
         running: true,
       }
-      goStage('zooming')
+      goStage('zooming', true)
       setOsMounted(true)
       if (dir === 'parked') {
         announce('Zoomed out to monitor. Press any key to return.')
