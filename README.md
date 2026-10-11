@@ -51,17 +51,19 @@ Returning visitors who finish or skip the intro are sent straight to the desktop
 
 ## 3D landing assets
 
-The desktop intro is a photoreal CRT product shot. Models and textures are **CC0 1.0** from [Poly Haven](https://polyhaven.com/). Full notes: `public/assets/scene/ATTRIBUTION.txt`. Credits also appear in ABOUT.TXT.
+The desktop intro is a photoreal CRT on a dark desk in a night room. Models and textures are **CC0 1.0** from [Poly Haven](https://polyhaven.com/). Full notes: `public/assets/scene/ATTRIBUTION.txt`. Credits also appear in ABOUT.TXT.
 
 | Asset | Author | Source | License | In repo |
 | --- | --- | --- | --- | --- |
-| Television 02 (vintage CRT) | Benny Weimer | https://polyhaven.com/a/television_02 | CC0 1.0 | `public/assets/scene/television_02.glb` (2K PBR, WebP textures, ~420KB) |
-| Moonless Golf HDRI | Greg Zaal | https://polyhaven.com/a/moonless_golf | CC0 1.0 | `public/assets/scene/moonless_golf_1k.hdr` |
-| Wood Table Worn | Dimitrios Savva | https://polyhaven.com/a/wood_table_worn | CC0 1.0 | `public/assets/scene/wood_table_worn_*_1k.webp` |
+| Television 02 (CRT housing) | Benny Weimer | https://polyhaven.com/a/television_02 | CC0 1.0 | `public/assets/scene/television_02.glb` |
+| Unfinished Office Night HDRI | Sergej Majboroda | https://polyhaven.com/a/unfinished_office_night | CC0 1.0 | `public/assets/scene/unfinished_office_night_1k.hdr` |
+| Modern Buildings Night | Greg Zaal | https://polyhaven.com/a/modern_buildings_night | CC0 1.0 | `public/assets/scene/modern_buildings_night.webp` |
+| Dark Wood | Dario Barresi, Dimitrios Savva, Rico Cilliers | https://polyhaven.com/a/dark_wood | CC0 1.0 | `public/assets/scene/dark_wood_*_1k.webp` |
+| Painted Plaster Wall | Amal Kumar | https://polyhaven.com/a/painted_plaster_wall | CC0 1.0 | `public/assets/scene/painted_plaster_wall_*_1k.webp` |
 
-Textures are WebP inside the GLB (~420KB). Draco/meshopt were tried; meshopt hung the browser decoder, so the WebP original is what ships.
+No photoreal IBM 5151 / Apple Monitor III GLB could be fetched under CC0/CC-BY without a Sketchfab login. Poly Haven only publishes CRT *televisions*. Sketchfab has CC-BY computer monitors (fizyman “CRT Computer Monitor”, Rafael Rodrigues “Old Computers”, Dio Pieretti “Old CRT Monitor Model”) but `/v3/models/{id}/download` returns 401 without an API token. Television 02 is the best photoreal CRT we can legally ship; a beige keyboard is added so the landing reads as a workstation.
 
-Mobile, `prefers-reduced-motion`, and no-WebGL still use the flat CRT fallback. The Three.js scene is lazy-loaded behind the HARSH.OS boot progress bar.
+Mobile, `prefers-reduced-motion`, and no-WebGL still use the flat CRT fallback. The Three.js scene is lazy-loaded on the themed night-room background.
 
 ## Layout
 

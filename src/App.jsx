@@ -179,7 +179,7 @@ export default function App() {
       </a>
 
       {showLanding && threeD && (
-        <Suspense fallback={<LoadingScreen progress={loadProgress} />}>
+        <Suspense fallback={<div className="room-fallback"><LoadingScreen progress={loadProgress} compact /></div>}>
           <CRTScene
             zoom={zoom}
             onScreenRect={setScreenRect}

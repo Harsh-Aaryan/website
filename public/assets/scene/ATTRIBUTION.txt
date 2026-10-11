@@ -1,19 +1,34 @@
 3D landing assets (all CC0 1.0, public domain — https://creativecommons.org/publicdomain/zero/1.0/)
 
-1. Television 02 (vintage CRT)
+1. Television 02 (vintage CRT housing)
    Author: Benny Weimer
    Source: https://polyhaven.com/a/television_02
    License: CC0 1.0
    File: television_02.glb (2K PBR, WebP textures)
+   Note: Best photoreal CC0 CRT we can fetch without a Sketchfab account.
+         CC-BY computer-monitor GLBs exist on Sketchfab (fizyman, Rafael Rodrigues,
+         Dio Pieretti) but their download API requires login.
 
-2. Moonless Golf HDRI
+2. Unfinished Office Night HDRI
+   Author: Sergej Majboroda
+   Source: https://polyhaven.com/a/unfinished_office_night
+   License: CC0 1.0
+   File: unfinished_office_night_1k.hdr
+
+3. Modern Buildings Night
    Author: Greg Zaal
-   Source: https://polyhaven.com/a/moonless_golf
+   Source: https://polyhaven.com/a/modern_buildings_night
    License: CC0 1.0
-   File: moonless_golf_1k.hdr (1K HDR)
+   File: modern_buildings_night.webp (window backplate)
 
-3. Wood Table Worn (desk PBR)
-   Author: Dimitrios Savva
-   Source: https://polyhaven.com/a/wood_table_worn
+4. Dark Wood (desk PBR)
+   Authors: Dario Barresi, Dimitrios Savva, Rico Cilliers
+   Source: https://polyhaven.com/a/dark_wood
    License: CC0 1.0
-   Files: wood_table_worn_diff_1k.webp, wood_table_worn_nor_gl_1k.webp, wood_table_worn_rough_1k.webp
+   Files: dark_wood_*_1k.webp
+
+5. Painted Plaster Wall
+   Author: Amal Kumar
+   Source: https://polyhaven.com/a/painted_plaster_wall
+   License: CC0 1.0
+   Files: painted_plaster_wall_*_1k.webp

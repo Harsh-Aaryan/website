@@ -31,15 +31,24 @@ export function useBootTexture({ running, reduced }) {
     const paintBackground = () => {
       ctx.fillStyle = '#0E0A05'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
-      const glow = ctx.createRadialGradient(512, 380, 40, 512, 400, 520)
-      glow.addColorStop(0, 'rgba(255, 176, 0, 0.08)')
+      const glow = ctx.createRadialGradient(512, 384, 70, 512, 400, 480)
+      glow.addColorStop(0, 'rgba(255, 176, 0, 0.1)')
       glow.addColorStop(1, 'rgba(14, 10, 5, 0)')
       ctx.fillStyle = glow
       ctx.fillRect(0, 0, canvas.width, canvas.height)
-      ctx.fillStyle = 'rgba(255, 176, 0, 0.03)'
+      ctx.fillStyle = 'rgba(255, 176, 0, 0.028)'
       for (let y = 0; y < canvas.height; y += 4) {
         ctx.fillRect(0, y, canvas.width, 1)
       }
+    }
+
+    const paintVignette = () => {
+      const edge = ctx.createRadialGradient(512, 384, 250, 512, 384, 560)
+      edge.addColorStop(0, 'rgba(8, 6, 3, 0)')
+      edge.addColorStop(0.7, 'rgba(8, 6, 3, 0.12)')
+      edge.addColorStop(1, 'rgba(6, 4, 2, 0.82)')
+      ctx.fillStyle = edge
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
     }
 
     const draw = (count) => {
@@ -47,16 +56,17 @@ export function useBootTexture({ running, reduced }) {
       ctx.shadowColor = 'transparent'
       ctx.shadowBlur = 0
       ctx.fillStyle = '#FFB000'
-      ctx.font = '28px "IBM Plex Mono", VT323, ui-monospace, monospace'
+      ctx.font = '26px "IBM Plex Mono", VT323, ui-monospace, monospace'
       ctx.textBaseline = 'top'
-      let y = 56
+      let y = 78
       BOOT_LINES.slice(0, count).forEach((line) => {
-        ctx.fillText(line || ' ', 72, y)
-        y += 42
+        ctx.fillText(line || ' ', 88, y)
+        y += 40
       })
       if (count >= BOOT_LINES.length) {
-        ctx.fillRect(72, y + 6, 14, 26)
+        ctx.fillRect(88, y + 6, 13, 24)
       }
+      paintVignette()
       texture.needsUpdate = true
     }
 
@@ -64,6 +74,7 @@ export function useBootTexture({ running, reduced }) {
       if (cancelled) return
       if (!running) {
         paintBackground()
+        paintVignette()
         texture.needsUpdate = true
         return
       }
