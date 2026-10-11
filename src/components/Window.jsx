@@ -67,8 +67,8 @@ export default function Window({
       data-window-id={id}
       style={
         mobile
-          ? { zIndex: z }
-          : { left: x, top: y, zIndex: z, maxHeight: `calc(100% - ${y + 8}px)` }
+          ? { zIndex: active ? 3 : 2 }
+          : { left: x, top: y, zIndex: Math.min(z, 20), maxHeight: `calc(100% - ${y + 8}px)` }
       }
       onPointerDown={() => onFocus(id)}
       aria-labelledby={`win-title-${id}`}

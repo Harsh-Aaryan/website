@@ -245,7 +245,7 @@
 
 .flat-os-bezel.is-crossfade,
 .screen-overlay.is-framed.is-crossfade {
-  transition: opacity 420ms ease;
+  transition: none;
 }
 
 .screen-overlay.is-wiping::after {
@@ -571,12 +571,14 @@
   align-items: center;
   gap: 6px;
   padding: 0 6px;
-  z-index: 12;
+  z-index: 100;
+  isolation: isolate;
   font-size: 20px;
 }
 
 .start-wrap {
   position: relative;
+  z-index: 110;
 }
 
 .start-button,
@@ -629,6 +631,7 @@
   border: 1px solid var(--text-primary);
   box-shadow: 4px 4px 0 var(--muted);
   padding: 4px;
+  z-index: 110;
 }
 
 .zoom-out-short { display: none; }
@@ -910,6 +913,23 @@
     min-width: 44px;
     min-height: 44px;
     padding: 8px 12px;
+  }
+
+  .window {
+    z-index: 2 !important;
+  }
+
+  .window.is-active {
+    z-index: 3 !important;
+  }
+
+  .taskbar {
+    z-index: 100;
+  }
+
+  .start-wrap,
+  .start-menu {
+    z-index: 110;
   }
 
   .window-close,

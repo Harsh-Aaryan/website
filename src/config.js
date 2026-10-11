@@ -92,22 +92,15 @@ export function isMobileViewport() {
   return window.matchMedia(`(max-width: ${BREAKPOINT_MOBILE}px)`).matches
 }
 
-/** Phones and desktop-site phones. Touch laptops / hover tablets stay on 3D. */
+/** Phones stay flat. Tablets and touch laptops at 800+ keep 3D. */
 export function isPhoneLike() {
   const ua = navigator.userAgent || ''
-  const uaPhone = /iPhone|iPod/i.test(ua) || (/Android/i.test(ua) && /Mobile/i.test(ua))
+  const uaMobile = /iPhone|iPod/i.test(ua) || (/Android/i.test(ua) && /Mobile/i.test(ua))
+  if (uaMobile) return true
   const shortest = Math.min(window.innerWidth || 0, window.innerHeight || 0)
-  const screenShort = Math.min(window.screen?.width || 0, window.screen?.height || 0)
   const coarse = window.matchMedia('(pointer: coarse)').matches
   const noHover = window.matchMedia('(hover: none)').matches
-  const fine = window.matchMedia('(pointer: fine)').matches
-  const canHover = window.matchMedia('(hover: hover)').matches
-  if (uaPhone) return true
-  if (coarse && noHover && screenShort > 0 && screenShort <= BREAKPOINT_MOBILE) return true
-  if ((fine || canHover) && shortest > BREAKPOINT_MOBILE) return false
-  if (coarse && noHover && shortest > 0 && shortest <= 920) return true
-  if (shortest > 0 && shortest <= BREAKPOINT_MOBILE) return true
-  return isMobileViewport()
+  return Boolean(coarse && noHover && shortest > 0 && shortest <= BREAKPOINT_MOBILE)
 }
 
 export function hasWebGL() {

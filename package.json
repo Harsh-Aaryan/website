@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:zoom": "node tests/zoom-stress.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^9.114.3",
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.0",
+    "playwright-core": "^1.49.1",
     "vite": "^5.2.11"
   }
 }

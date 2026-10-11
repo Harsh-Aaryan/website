@@ -77,7 +77,7 @@ export default function Taskbar({
           HARSH.OS
         </button>
         {menuOpen && (
-          <div className="start-menu" role="menu" onKeyDown={onMenuKey}>
+          <div className="start-menu" role="menu" onKeyDown={onMenuKey} style={{ zIndex: 110 }}>
             {SECTIONS.map((section, index) => (
               <button
                 key={section.id}
