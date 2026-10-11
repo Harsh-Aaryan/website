@@ -124,10 +124,10 @@ function GlassTracker({ screen, onRect }) {
       minY = Math.min(minY, y)
       maxY = Math.max(maxY, y)
     }
-    // Phosphor is 96% of the glass plane; inscribed rect of that yawed
-    // quad matches a center-line pixel scan, not the corner AABB.
-    const phw = hw * 0.96
-    const phh = hh * 0.96
+    // Visible TV opening is tighter than the overlay plane. 0.82 of the
+    // half-extents matches a ~70% pixel width at 800x1200 / zoom 0.89.
+    const phw = hw * 0.82
+    const phh = hh * 0.82
     const phosphorLocal = [
       [-phw, -phh],
       [phw, -phh],

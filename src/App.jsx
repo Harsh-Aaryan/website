@@ -55,8 +55,8 @@ function visibleGlassRect(rect) {
 function wipeProgress(zoom, aspect) {
   const t = Math.min(1, Math.max(0, (zoom - 0.9) / 0.1))
   if (aspect < 1) {
-    // Ease-out so portrait is ~full by 0.95 instead of stalling at ~85%.
-    return 1 - (1 - t) ** 3
+    // Quartic ease-out: last 10% reaches ~full by 0.95 from a ~70% glass.
+    return 1 - (1 - t) ** 4
   }
   return smoothstep(t)
 }
