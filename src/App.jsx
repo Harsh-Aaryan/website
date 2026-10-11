@@ -62,7 +62,9 @@ function applyOverlayRect(el, rect, zoom) {
   el.style.top = `${box.top * (1 - u)}px`
   el.style.width = `${box.width + (vw - box.width) * u}px`
   el.style.height = `${box.height + (vh - box.height) * u}px`
-  el.style.borderRadius = `${(16 * (1 - u)).toFixed(2)}% / ${(20 * (1 - u)).toFixed(2)}%`
+  // Hit 0 by ~0.93 so HARSH.OS / clock are never inside a tube mask.
+  const radiusU = Math.min(1, u / 0.28)
+  el.style.borderRadius = `${(8 * (1 - radiusU)).toFixed(1)}px`
   el.classList.toggle('is-mapped', u < 0.995)
   el.classList.toggle('is-full', u >= 0.995)
 }

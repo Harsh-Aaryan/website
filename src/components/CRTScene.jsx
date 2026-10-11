@@ -29,6 +29,18 @@ function startCamForAspect(aspect) {
   }
 }
 
+/** Keep ~26° of horizontal coverage on portrait so the BIOS left column stays in frame. */
+function endCamForAspect(aspect) {
+  const safe = Math.max(0.42, aspect)
+  if (safe >= 1) return END_CAM
+  const half = (END_CAM.fov * Math.PI) / 360
+  return {
+    pos: END_CAM.pos,
+    look: END_CAM.look,
+    fov: Math.min(58, (2 * Math.atan(Math.tan(half) / safe) * 180) / Math.PI),
+  }
+}
+
 function lerp(a, b, t) {
   return a + (b - a) * t
 }
@@ -51,17 +63,16 @@ function curveGeometry(width, height, bend = 0.028) {
 
 function CameraRig({ zoomRef }) {
   const { camera, size } = useThree()
-  const start = useMemo(
-    () => startCamForAspect(size.width / Math.max(1, size.height)),
-    [size.height, size.width]
-  )
+  const aspect = size.width / Math.max(1, size.height)
+  const start = useMemo(() => startCamForAspect(aspect), [aspect])
+  const end = useMemo(() => endCamForAspect(aspect), [aspect])
 
   useFrame(() => {
     const t = zoomRef?.current ?? 0
-    const pos = lerp3(start.pos, END_CAM.pos, t)
-    const look = lerp3(start.look, END_CAM.look, t)
+    const pos = lerp3(start.pos, end.pos, t)
+    const look = lerp3(start.look, end.look, t)
     camera.position.set(pos[0], pos[1], pos[2])
-    camera.fov = lerp(start.fov, END_CAM.fov, t)
+    camera.fov = lerp(start.fov, end.fov, t)
     camera.lookAt(look[0], look[1], look[2])
     camera.updateProjectionMatrix()
   })

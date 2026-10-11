@@ -217,7 +217,6 @@
 
 .screen-overlay.is-mapped {
   pointer-events: auto;
-  border-radius: 16% / 20%;
   box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.55);
 }
 
