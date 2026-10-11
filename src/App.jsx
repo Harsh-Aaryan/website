@@ -52,10 +52,25 @@ function visibleGlassRect(rect) {
   }
 }
 
+function wipeProgress(zoom, aspect) {
+  const t = Math.min(1, Math.max(0, (zoom - 0.9) / 0.1))
+  if (aspect < 1) {
+    // Ease-out so portrait is ~full by 0.95 instead of stalling at ~85%.
+    return 1 - (1 - t) ** 3
+  }
+  return smoothstep(t)
+}
+
+function overlaySourceRect(rect, aspect) {
+  if (aspect < 1 && rect.screen) return visibleGlassRect(rect.screen)
+  return visibleGlassRect(rect)
+}
+
 function applyOverlayRect(el, rect, zoom) {
   if (!el || !rect) return
-  const u = smoothstep((zoom - 0.9) / 0.1)
-  const box = visibleGlassRect(rect)
+  const aspect = window.innerWidth / Math.max(1, window.innerHeight)
+  const u = wipeProgress(zoom, aspect)
+  const box = overlaySourceRect(rect, aspect)
   const vw = window.innerWidth
   const vh = window.innerHeight
   el.style.left = `${box.left * (1 - u)}px`

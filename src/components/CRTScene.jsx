@@ -92,6 +92,10 @@ function GlassTracker({ screen, onRect }) {
       new THREE.Vector3(),
       new THREE.Vector3(),
       new THREE.Vector3(),
+      new THREE.Vector3(),
+      new THREE.Vector3(),
+      new THREE.Vector3(),
+      new THREE.Vector3(),
     ],
     []
   )
@@ -109,7 +113,8 @@ function GlassTracker({ screen, onRect }) {
     let minY = Infinity
     let maxX = -Infinity
     let maxY = -Infinity
-    for (const point of corners) {
+    for (let i = 0; i < 4; i += 1) {
+      const point = corners[i]
       group.current.localToWorld(point)
       point.project(camera)
       const x = (point.x * 0.5 + 0.5) * size.width
@@ -119,6 +124,31 @@ function GlassTracker({ screen, onRect }) {
       minY = Math.min(minY, y)
       maxY = Math.max(maxY, y)
     }
+    // Phosphor is 96% of the glass plane; inscribed rect of that yawed
+    // quad matches a center-line pixel scan, not the corner AABB.
+    const phw = hw * 0.96
+    const phh = hh * 0.96
+    const phosphorLocal = [
+      [-phw, -phh],
+      [phw, -phh],
+      [phw, phh],
+      [-phw, phh],
+    ]
+    const phosphor = phosphorLocal.map(([lx, ly], i) => {
+      const p = corners[4 + i]
+      p.set(lx, ly, 0)
+      group.current.localToWorld(p)
+      p.project(camera)
+      return {
+        x: (p.x * 0.5 + 0.5) * size.width,
+        y: (-p.y * 0.5 + 0.5) * size.height,
+      }
+    })
+    const [bl, br, tr, tl] = phosphor
+    const innerLeft = Math.max(tl.x, bl.x)
+    const innerRight = Math.min(tr.x, br.x)
+    const innerTop = Math.max(tl.y, tr.y)
+    const innerBottom = Math.min(bl.y, br.y)
     const visLeft = Math.max(0, minX)
     const visRight = Math.min(size.width, maxX)
     onRectRef.current({
@@ -128,6 +158,12 @@ function GlassTracker({ screen, onRect }) {
       height: maxY - minY,
       widthPct: ((maxX - minX) / size.width) * 100,
       visibleWidthPct: ((visRight - visLeft) / size.width) * 100,
+      screen: {
+        left: innerLeft,
+        top: innerTop,
+        width: Math.max(1, innerRight - innerLeft),
+        height: Math.max(1, innerBottom - innerTop),
+      },
     })
   })
 
