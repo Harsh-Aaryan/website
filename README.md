@@ -49,6 +49,18 @@ Returning visitors who finish or skip the intro are sent straight to the desktop
 
 `prefers-reduced-motion` skips the dolly, flicker, and boot typing.
 
+## 3D landing assets
+
+The desktop intro is a photoreal CRT product shot. Models and textures are **CC0 1.0** from [Poly Haven](https://polyhaven.com/). Full notes: `public/assets/scene/ATTRIBUTION.txt`. Credits also appear in ABOUT.TXT.
+
+| Asset | Author | Source | License | In repo |
+| --- | --- | --- | --- | --- |
+| Television 02 (vintage CRT) | Benny Weimer | https://polyhaven.com/a/television_02 | CC0 1.0 | `public/assets/scene/television_02.glb` (2K PBR, WebP textures, ~420KB) |
+| Moonless Golf HDRI | Greg Zaal | https://polyhaven.com/a/moonless_golf | CC0 1.0 | `public/assets/scene/moonless_golf_1k.hdr` |
+| Wood Table Worn | Dimitrios Savva | https://polyhaven.com/a/wood_table_worn | CC0 1.0 | `public/assets/scene/wood_table_worn_*_1k.webp` |
+
+Mobile, `prefers-reduced-motion`, and no-WebGL still use the flat CRT fallback. The Three.js scene is lazy-loaded behind the HARSH.OS boot progress bar.
+
 ## Layout
 
 ```

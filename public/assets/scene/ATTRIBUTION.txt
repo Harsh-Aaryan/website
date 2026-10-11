@@ -1,0 +1,19 @@
+3D landing assets (all CC0 1.0, public domain — https://creativecommons.org/publicdomain/zero/1.0/)
+
+1. Television 02 (vintage CRT)
+   Author: Benny Weimer
+   Source: https://polyhaven.com/a/television_02
+   License: CC0 1.0
+   File: television_02.glb (2K PBR, WebP textures)
+
+2. Moonless Golf HDRI
+   Author: Greg Zaal
+   Source: https://polyhaven.com/a/moonless_golf
+   License: CC0 1.0
+   File: moonless_golf_1k.hdr (1K HDR)
+
+3. Wood Table Worn (desk PBR)
+   Author: Dimitrios Savva
+   Source: https://polyhaven.com/a/wood_table_worn
+   License: CC0 1.0
+   Files: wood_table_worn_diff_1k.webp, wood_table_worn_nor_gl_1k.webp, wood_table_worn_rough_1k.webp

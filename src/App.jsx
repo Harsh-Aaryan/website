@@ -35,6 +35,7 @@ export default function App() {
   const [screenRect, setScreenRect] = useState(null)
   const [flash, setFlash] = useState(false)
   const [ready3d, setReady3d] = useState(!threeD)
+  const [loadProgress, setLoadProgress] = useState(8)
   const zoomRaf = useRef(0)
 
   useCrtAudio(!muted && stage !== 'loading')
@@ -45,9 +46,10 @@ export default function App() {
 
   useEffect(() => {
     if (stage !== 'loading') return
-    const timer = setTimeout(() => setStage('boot'), TIMING.loadingMinMs)
+    if (threeD && !ready3d) return
+    const timer = setTimeout(() => setStage('boot'), threeD ? 380 : TIMING.loadingMinMs)
     return () => clearTimeout(timer)
-  }, [stage])
+  }, [ready3d, stage, threeD])
 
   const persistSkip = () => {
     try {
@@ -149,8 +151,8 @@ export default function App() {
 
   const glass = (
     <>
-      {stage === 'loading' && <LoadingScreen />}
-      {stage === 'boot' && (
+      {stage === 'loading' && !threeD && <LoadingScreen progress={loadProgress} />}
+      {stage === 'boot' && !threeD && (
         <BootScreen running onReady={startZoom} reduced={reduced} />
       )}
       {stage === 'zooming' && os}
@@ -164,14 +166,23 @@ export default function App() {
       </a>
 
       {showLanding && threeD && (
-        <Suspense fallback={<LoadingScreen />}>
+        <Suspense fallback={<LoadingScreen progress={loadProgress} />}>
           <CRTScene
             zoom={zoom}
             onScreenRect={setScreenRect}
             onReady={() => setReady3d(true)}
+            onProgress={setLoadProgress}
+            bootRunning={stage === 'boot'}
+            reducedMotion={reduced}
           />
         </Suspense>
       )}
+      {stage === 'boot' && threeD && (
+        <div className="visually-hidden">
+          <BootScreen running onReady={startZoom} reduced={reduced} />
+        </div>
+      )}
+      {stage === 'loading' && threeD && <LoadingScreen progress={loadProgress} compact />}
 
       {showLanding && !threeD && (
         <FlatCRT zoom={zoom} stage={stage}>
@@ -179,7 +190,7 @@ export default function App() {
         </FlatCRT>
       )}
 
-      {showLanding && threeD && ready3d && (
+      {showLanding && threeD && stage === 'zooming' && (
         <div
           className={`screen-overlay ${overlayFull ? 'is-full' : 'is-mapped'}`}
           style={overlayStyle}

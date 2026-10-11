@@ -149,3 +149,27 @@ export const BOOT_LINES = [
   '',
   'PRESS ANY KEY TO LOG ON',
 ]
+
+export const SCENE_CREDITS = [
+  {
+    title: 'Television 02',
+    author: 'Benny Weimer',
+    source: 'https://polyhaven.com/a/television_02',
+    license: 'CC0 1.0',
+    note: 'Photoreal vintage CRT, 2K PBR, WebP textures',
+  },
+  {
+    title: 'Moonless Golf HDRI',
+    author: 'Greg Zaal',
+    source: 'https://polyhaven.com/a/moonless_golf',
+    license: 'CC0 1.0',
+    note: 'Night environment for reflections',
+  },
+  {
+    title: 'Wood Table Worn',
+    author: 'Dimitrios Savva',
+    source: 'https://polyhaven.com/a/wood_table_worn',
+    license: 'CC0 1.0',
+    note: 'Desk albedo, normal, roughness',
+  },
+]

@@ -1,10 +1,21 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useMemo, useRef } from 'react'
+import {
+  ContactShadows,
+  Environment,
+  SoftShadows,
+  useGLTF,
+  useProgress,
+  useTexture,
+} from '@react-three/drei'
+import { Bloom, DepthOfField, EffectComposer, Noise, Vignette } from '@react-three/postprocessing'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { ROOM } from '../config'
+import { useBootTexture } from './ScreenBoot'
 
-const START_CAM = { pos: [0.55, 0.72, 3.35], look: [0, 0.42, 0], fov: 42 }
-const END_CAM = { pos: [0, 0.46, 0.72], look: [0, 0.46, 0], fov: 28 }
+const TV_SCALE = 1.55
+const START_CAM = { pos: [0.68, 0.48, 1.42], look: [0.0, 0.28, 0.02], fov: 30 }
+const END_CAM = { pos: [0.02, 0.40, 0.52], look: [0.0, 0.39, 0.16], fov: 26 }
 
 function lerp(a, b, t) {
   return a + (b - a) * t
@@ -12,6 +23,18 @@ function lerp(a, b, t) {
 
 function lerp3(a, b, t) {
   return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)]
+}
+
+function curveGeometry(width, height, bend = 0.028) {
+  const geo = new THREE.PlaneGeometry(width, height, 40, 30)
+  const pos = geo.attributes.position
+  for (let i = 0; i < pos.count; i += 1) {
+    const x = pos.getX(i) / width
+    const y = pos.getY(i) / height
+    pos.setZ(i, -bend * (x * x + y * y * 0.55))
+  }
+  geo.computeVertexNormals()
+  return geo
 }
 
 function CameraRig({ zoom, screenRef, onScreenRect }) {
@@ -30,10 +53,10 @@ function CameraRig({ zoom, screenRef, onScreenRect }) {
     if (!screenRef.current || !onScreenRect) return
     const mesh = screenRef.current
     const corners = [
-      new THREE.Vector3(-1, -1, 0),
-      new THREE.Vector3(1, -1, 0),
-      new THREE.Vector3(1, 1, 0),
-      new THREE.Vector3(-1, 1, 0),
+      new THREE.Vector3(-0.5, -0.5, 0),
+      new THREE.Vector3(0.5, -0.5, 0),
+      new THREE.Vector3(0.5, 0.5, 0),
+      new THREE.Vector3(-0.5, 0.5, 0),
     ].map((local) => {
       const v = local.clone()
       mesh.localToWorld(v)
@@ -67,157 +90,240 @@ function CameraRig({ zoom, screenRef, onScreenRect }) {
   return null
 }
 
-function Monitor({ screenRef }) {
-  const plastic = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: ROOM.plastic,
-        roughness: 0.62,
-        metalness: 0.04,
-      }),
-    []
-  )
-  const plasticDark = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: ROOM.plasticShade,
-        roughness: 0.7,
-        metalness: 0.05,
-      }),
-    []
+function VintageCRT({ screenRef, bootMap }) {
+  const { scene } = useGLTF('/assets/scene/television_02.glb')
+  const clone = useMemo(() => scene.clone(true), [scene])
+  const [screen, setScreen] = useState({
+    position: [0, 0.29, 0.145],
+    size: [0.312, 0.226],
+  })
+
+  useLayoutEffect(() => {
+    clone.traverse((obj) => {
+      if (!obj.isMesh || !obj.material) return
+      obj.castShadow = true
+      obj.receiveShadow = true
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material]
+      mats.forEach((mat) => {
+        mat.envMapIntensity = 0.7
+        mat.roughness = Math.min((mat.roughness ?? 0.42) + 0.1, 0.68)
+        if (mat.color) mat.color.multiply(new THREE.Color(1.05, 0.97, 0.86))
+      })
+    })
+    const box = new THREE.Box3().setFromObject(clone)
+    const size = new THREE.Vector3()
+    const center = new THREE.Vector3()
+    box.getSize(size)
+    box.getCenter(center)
+    setScreen({
+      position: [center.x, center.y + size.y * 0.145, box.max.z + 0.024],
+      size: [size.x * 0.78, size.y * 0.55],
+    })
+  }, [clone])
+
+  const glassGeo = useMemo(
+    () => curveGeometry(screen.size[0], screen.size[1], 0.026),
+    [screen.size]
   )
 
   return (
-    <group position={[0, 0.62, 0]}>
-      <mesh position={[0, 0, -0.22]} material={plastic} castShadow>
-        <boxGeometry args={[1.86, 1.42, 0.62]} />
+    <group scale={TV_SCALE} position={[0, 0, 0]} rotation={[0, 0.18, 0]}>
+      <primitive object={clone} />
+      <mesh
+        ref={screenRef}
+        geometry={glassGeo}
+        position={screen.position}
+        renderOrder={2}
+      >
+        <meshStandardMaterial
+          map={bootMap}
+          emissiveMap={bootMap}
+          emissive={new THREE.Color('#ffb000')}
+          emissiveIntensity={1.05}
+          roughness={0.42}
+          metalness={0}
+          toneMapped={false}
+          polygonOffset
+          polygonOffsetFactor={-1}
+          polygonOffsetUnits={-1}
+        />
       </mesh>
-      <mesh position={[0, 0, 0.08]} material={plasticDark}>
-        <boxGeometry args={[1.72, 1.28, 0.12]} />
-      </mesh>
-      <mesh position={[0, 0, 0.145]} material={plastic}>
-        <boxGeometry args={[1.58, 1.16, 0.04]} />
-      </mesh>
-      <mesh ref={screenRef} position={[0, 0.02, 0.168]} name="screen">
-        <planeGeometry args={[1.36, 0.98]} />
-        <meshBasicMaterial color="#0e0a05" />
-      </mesh>
-      <mesh position={[0, 0.02, 0.172]}>
-        <planeGeometry args={[1.36, 0.98]} />
-        <meshStandardMaterial color="#1a1408" transparent opacity={0.2} roughness={0.2} />
-      </mesh>
-      <mesh position={[0.72, -0.58, 0.18]}>
-        <boxGeometry args={[0.06, 0.03, 0.03]} />
-        <meshStandardMaterial color="#ffb000" emissive="#ffb000" emissiveIntensity={2.4} />
-      </mesh>
-      <mesh position={[0, -0.86, -0.05]} material={plasticDark}>
-        <boxGeometry args={[0.42, 0.28, 0.28]} />
-      </mesh>
-      <mesh position={[0, -1.08, 0.02]} material={plastic} receiveShadow>
-        <cylinderGeometry args={[0.42, 0.5, 0.12, 24]} />
+      <mesh
+        geometry={glassGeo}
+        position={[screen.position[0], screen.position[1], screen.position[2] + 0.008]}
+        renderOrder={3}
+      >
+        <meshPhysicalMaterial
+          color="#ffffff"
+          roughness={0.06}
+          metalness={0}
+          transmission={0.86}
+          thickness={0.012}
+          ior={1.45}
+          transparent
+          opacity={0.16}
+          clearcoat={1}
+          clearcoatRoughness={0.18}
+          envMapIntensity={1.6}
+          depthWrite={false}
+        />
       </mesh>
     </group>
   )
 }
 
 function Desk() {
+  const [albedo, normal, rough] = useTexture([
+    '/assets/scene/wood_table_worn_diff_1k.webp',
+    '/assets/scene/wood_table_worn_nor_gl_1k.webp',
+    '/assets/scene/wood_table_worn_rough_1k.webp',
+  ])
+  useEffect(() => {
+    ;[albedo, normal, rough].forEach((tex) => {
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping
+      tex.repeat.set(2.4, 1.4)
+      tex.anisotropy = 8
+    })
+    albedo.colorSpace = THREE.SRGBColorSpace
+  }, [albedo, normal, rough])
+
   return (
-    <group>
-      <mesh position={[0, -0.58, 0.1]} receiveShadow>
-        <boxGeometry args={[6.4, 0.12, 2.8]} />
-        <meshStandardMaterial color={ROOM.wood} roughness={0.86} metalness={0} />
-      </mesh>
-      <mesh position={[0, -0.52, 0.55]}>
-        <boxGeometry args={[1.7, 0.05, 0.55]} />
-        <meshStandardMaterial color="#c9b48a" roughness={0.55} />
-      </mesh>
-      {Array.from({ length: 12 }).map((_, i) => (
-        <mesh key={i} position={[-0.72 + i * 0.13, -0.49, 0.55]}>
-          <boxGeometry args={[0.1, 0.03, 0.42]} />
-          <meshStandardMaterial color="#3a2a18" />
-        </mesh>
-      ))}
-      <mesh position={[1.15, -0.5, 0.42]}>
-        <boxGeometry args={[0.16, 0.04, 0.22]} />
-        <meshStandardMaterial color="#c9b48a" />
-      </mesh>
-    </group>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0.12]} receiveShadow>
+      <planeGeometry args={[4.2, 2.4]} />
+      <meshStandardMaterial
+        map={albedo}
+        normalMap={normal}
+        roughnessMap={rough}
+        roughness={0.84}
+        metalness={0.02}
+        envMapIntensity={0.28}
+      />
+    </mesh>
   )
 }
 
-function Dust() {
-  const ref = useRef()
-  const positions = useMemo(() => {
-    const arr = new Float32Array(180 * 3)
-    for (let i = 0; i < 180; i += 1) {
-      arr[i * 3] = (Math.random() - 0.5) * 4
-      arr[i * 3 + 1] = Math.random() * 2
-      arr[i * 3 + 2] = (Math.random() - 0.5) * 3
-    }
-    return arr
-  }, [])
-
-  useFrame(({ clock }) => {
-    if (ref.current) ref.current.rotation.y = clock.elapsedTime * 0.012
-  })
-
-  return (
-    <points ref={ref}>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" count={180} array={positions} itemSize={3} />
-      </bufferGeometry>
-      <pointsMaterial color="#8fb4c9" size={0.012} transparent opacity={0.28} depthWrite={false} />
-    </points>
-  )
-}
-
-function Scene({ zoom, onScreenRect, onReady }) {
-  const screenRef = useRef()
+function LoadBridge({ onProgress, onReady }) {
+  const { progress } = useProgress()
+  const readyRef = useRef(false)
+  const onReadyRef = useRef(onReady)
+  const onProgressRef = useRef(onProgress)
+  onReadyRef.current = onReady
+  onProgressRef.current = onProgress
 
   useEffect(() => {
-    onReady?.()
-  }, [onReady])
+    onProgressRef.current?.(progress)
+    if (progress >= 99 && !readyRef.current) {
+      readyRef.current = true
+      onReadyRef.current?.()
+    }
+  }, [progress])
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      if (!readyRef.current) {
+        readyRef.current = true
+        onReadyRef.current?.()
+      }
+    }, 5000)
+    return () => window.clearTimeout(id)
+  }, [])
+
+  return null
+}
+
+function Scene({ zoom, onScreenRect, bootRunning, reducedMotion }) {
+  const screenRef = useRef()
+  const bootMap = useBootTexture({ running: bootRunning, reduced: reducedMotion })
+  const { scene } = useThree()
+
+  useEffect(() => {
+    scene.background = new THREE.Color(ROOM.dark)
+  }, [scene])
 
   return (
     <>
       <color attach="background" args={[ROOM.dark]} />
-      <fog attach="fog" args={[ROOM.dark, 4.5, 11]} />
-      <ambientLight intensity={0.08} color={ROOM.coolKey} />
+      <fog attach="fog" args={[ROOM.dark, 4.2, 10]} />
+      <SoftShadows size={16} samples={8} focus={0.55} />
+      <hemisphereLight args={['#7d9eb0', '#140e08', 0.08]} />
       <directionalLight
-        position={[-3.2, 2.4, 1.6]}
-        intensity={0.55}
-        color={ROOM.coolKey}
+        position={[-2.4, 1.6, -0.55]}
+        intensity={0.38}
+        color="#8fb4c9"
+        castShadow
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+        shadow-camera-near={0.4}
+        shadow-camera-far={8}
+        shadow-camera-left={-2}
+        shadow-camera-right={2}
+        shadow-camera-top={2}
+        shadow-camera-bottom={-2}
+        shadow-bias={-0.0004}
       />
-      <pointLight position={[0, 0.7, 0.9]} intensity={2.1} color="#ffb000" distance={4.2} decay={2} />
       <spotLight
-        position={[-2.8, 2.2, 1.4]}
-        angle={0.5}
-        penumbra={0.8}
-        intensity={0.35}
-        color={ROOM.coolKey}
+        position={[0.02, 0.46, 0.22]}
+        angle={0.95}
+        penumbra={0.92}
+        intensity={1.65}
+        color="#ffb000"
+        distance={2.6}
+        decay={2}
+        castShadow
       />
-      <mesh position={[0, -0.2, -2.4]}>
-        <planeGeometry args={[18, 8]} />
-        <meshStandardMaterial color={ROOM.light} />
+      <pointLight position={[0.08, 0.12, 0.38]} intensity={0.35} color="#e09a30" distance={1.6} decay={2} />
+      <ambientLight intensity={0.08} color="#6d8294" />
+      <Environment files="/assets/scene/moonless_golf_1k.hdr" environmentIntensity={0.3} background={false} />
+      <mesh position={[0, 0.7, -1.8]} receiveShadow>
+        <planeGeometry args={[14, 7]} />
+        <meshStandardMaterial color="#0a0c10" roughness={0.96} />
       </mesh>
       <Desk />
-      <Monitor screenRef={screenRef} />
-      <Dust />
+      <VintageCRT screenRef={screenRef} bootMap={bootMap} />
+      <ContactShadows position={[0, 0.001, 0.08]} opacity={0.5} scale={3.6} blur={2.2} far={1.2} color="#000" />
       <CameraRig zoom={zoom} screenRef={screenRef} onScreenRect={onScreenRect} />
+      {zoom < 0.92 && (
+        <EffectComposer disableNormalPass multisampling={0}>
+          <Bloom intensity={0.2} luminanceThreshold={0.78} mipmapBlur />
+          <DepthOfField
+            focusDistance={0.012}
+            focalLength={0.016}
+            bokehScale={zoom > 0.25 ? 0.8 : 1.5}
+          />
+          <Noise opacity={0.022} />
+          <Vignette offset={0.28} darkness={0.55} />
+        </EffectComposer>
+      )}
     </>
   )
 }
 
-export default function CRTScene({ zoom, onScreenRect, onReady }) {
+export default function CRTScene({ zoom, onScreenRect, onReady, onProgress, bootRunning, reducedMotion }) {
   return (
     <div className="scene-layer scene-canvas">
       <Canvas
-        dpr={[1, 1.35]}
-        gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+        dpr={[1, 1.5]}
+        shadows
+        gl={{
+          antialias: true,
+          alpha: false,
+          powerPreference: 'high-performance',
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 0.92,
+          outputColorSpace: THREE.SRGBColorSpace,
+        }}
         camera={{ position: START_CAM.pos, fov: START_CAM.fov }}
       >
-        <Scene zoom={zoom} onScreenRect={onScreenRect} onReady={onReady} />
+        <LoadBridge onProgress={onProgress} onReady={onReady} />
+        <Scene
+          zoom={zoom}
+          onScreenRect={onScreenRect}
+          bootRunning={bootRunning}
+          reducedMotion={reducedMotion}
+        />
       </Canvas>
     </div>
   )
 }
+
+useGLTF.preload('/assets/scene/television_02.glb')

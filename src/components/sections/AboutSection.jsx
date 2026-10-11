@@ -1,4 +1,4 @@
-import { ASCII_BANNER, EDUCATION, EXPERIENCE, INTERESTS, PROFILE } from '../../content'
+import { ASCII_BANNER, EDUCATION, EXPERIENCE, INTERESTS, PROFILE, SCENE_CREDITS } from '../../content'
 
 export default function AboutSection() {
   return (
@@ -57,6 +57,21 @@ export default function AboutSection() {
           </div>
         ))}
       </div>
+
+      <h2 className="heading">3D scene credits</h2>
+      <p className="section-sub">Landing CRT uses CC0 assets from Poly Haven.</p>
+      {SCENE_CREDITS.map((item) => (
+        <div key={item.title} className="meta-row">
+          <span className="k">{item.title}</span>
+          <span>
+            {item.author} — {item.license} —{' '}
+            <a href={item.source} target="_blank" rel="noreferrer">
+              {item.source.replace('https://', '')}
+            </a>
+            {item.note ? ` (${item.note})` : ''}
+          </span>
+        </div>
+      ))}
     </article>
   )
 }

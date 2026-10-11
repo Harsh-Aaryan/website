@@ -242,6 +242,36 @@
   bottom: 52px;
 }
 
+.scene-load-hud {
+  position: absolute;
+  left: 16px;
+  bottom: 52px;
+  z-index: 25;
+  padding: 8px 12px;
+  font-family: var(--font-ui);
+  font-size: 18px;
+  letter-spacing: 0.06em;
+  background: var(--screen-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--text-primary);
+  box-shadow: 4px 4px 0 var(--muted);
+  pointer-events: none;
+}
+
+.scene-load-hud .boot-loader-bar {
+  margin-top: 8px;
+  width: 168px;
+  height: 8px;
+  border: 1px solid var(--text-primary);
+  padding: 2px;
+}
+
+.scene-load-hud .boot-loader-bar > i {
+  display: block;
+  height: 100%;
+  background: var(--text-primary);
+}
+
 .skip-intro-btn:hover,
 .hud-btn:hover,
 .start-button:hover,
