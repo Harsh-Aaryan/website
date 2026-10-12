@@ -372,7 +372,7 @@ function FpsGuard({ active, onFrame }) {
       lastProg.current = prog
       skipN.current = 2
     }
-    if (now - armedAt.current < 300 || skipN.current > 0) {
+    if (!window.__crtWarmed || now - armedAt.current < 300 || skipN.current > 0) {
       if (skipN.current > 0) skipN.current -= 1
       last.current = now
       return

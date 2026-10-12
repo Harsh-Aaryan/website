@@ -30,6 +30,11 @@ function wrap(ctx, name, fallback) {
 export function shieldWebGL(ctx) {
   if (!ctx || ctx.__crtShielded) return ctx
   ctx.__crtShielded = true
+  try {
+    ctx.__loseExt = ctx.getExtension('WEBGL_lose_context')
+  } catch {
+    ctx.__loseExt = null
+  }
   wrap(ctx, 'getShaderPrecisionFormat', () => ({ ...DUMMY_PRECISION }))
   wrap(ctx, 'getParameter', () => null)
   wrap(ctx, 'getExtension', () => null)

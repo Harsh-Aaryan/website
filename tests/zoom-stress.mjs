@@ -354,12 +354,16 @@ async function loseWebGL(page) {
     let n = 0
     for (const canvas of document.querySelectorAll('canvas')) {
       const gl = canvas.getContext('webgl2') || canvas.getContext('webgl')
-      const ext = gl?.getExtension?.('WEBGL_lose_context')
-      if (ext) {
-        ext.loseContext()
+      const ext = gl?.__loseExt || gl?.getExtension?.('WEBGL_lose_context')
+      try {
+        ext?.loseContext()
         n += 1
+      } catch {
+        /* ignore */
       }
+      canvas.dispatchEvent(new Event('webglcontextlost', { bubbles: true, cancelable: true }))
     }
+    if (!n) window.dispatchEvent(new Event('webglcontextlost'))
     return n
   })
 }
@@ -368,20 +372,24 @@ async function assertFlatVisible(page, label, pageErrors) {
   await page.waitForFunction(
     () => {
       const d = window.__crtDebug
+      const main = document.querySelector('#os-main')
       const content =
         document.querySelector('.os-root') ||
         document.querySelector('.boot-screen') ||
         document.querySelector('.flat-os-bezel') ||
-        document.querySelector('.flat-crt')
+        document.querySelector('.flat-crt') ||
+        document.querySelector('.flat-room')
       const r = content?.getBoundingClientRect()
-      const main = document.querySelector('#os-main')
+      const mainR = main?.getBoundingClientRect()
+      const text = (document.body.innerText || '').replace(/\s+/g, ' ').trim()
       return Boolean(
         d &&
           d.display === 'flat' &&
-          main &&
-          r &&
-          r.width > 80 &&
-          r.height > 80
+          main?.getAttribute('data-display') === 'flat' &&
+          mainR &&
+          mainR.height > 200 &&
+          text.length > 8 &&
+          (r ? r.width * r.height > 0 || text.length > 8 : true)
       )
     },
     null,

@@ -183,7 +183,9 @@ export default function App() {
   liteRef.current = lite
   const fpsTimes = useRef([])
   const fpsBad = useRef(0)
+  const introZoom = useRef(true)
   const recordFps = useCallback((dt) => {
+    if (dt >= 80) return
     fpsTimes.current.push(dt)
   }, [])
   const judgeFpsSamples = () => {
@@ -192,8 +194,10 @@ export default function App() {
     if (times.length < 8) return
     const sorted = times.slice().sort((a, b) => a - b)
     const p75 = sorted[Math.floor((sorted.length - 1) * 0.75)]
-    if (p75 > 50) fpsBad.current += 1
+    const slow = times.filter((dt) => dt > 50).length
+    if (p75 > 50 && slow / times.length >= 0.4) fpsBad.current += 1
     else fpsBad.current = 0
+    window.__crtFpsJudge = { p75, count: times.length, slow, bad: fpsBad.current }
   }
 
   const [stage, setStage] = useState(() => {
@@ -406,7 +410,12 @@ export default function App() {
       setOverlayOn(true)
       setOsMounted(true)
       landOnOs()
-      judgeFpsSamples()
+      if (introZoom.current) {
+        introZoom.current = false
+        fpsTimes.current = []
+      } else {
+        judgeFpsSamples()
+      }
     },
     [goStage, landOnOs, publishDebug]
   )
