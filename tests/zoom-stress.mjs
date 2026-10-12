@@ -78,6 +78,18 @@ const PROFILES = [
     expectDisplay: '3d',
     reverse: false,
   },
+  {
+    name: 'desktop-1280-3d',
+    viewport: { width: 1280, height: 800 },
+    deviceScaleFactor: 1,
+    isMobile: false,
+    hasTouch: false,
+    userAgent: DESKTOP_UA,
+    expectDisplay: '3d',
+    reverse: false,
+    assertFirstOut: true,
+    cpu: 4,
+  },
 ]
 
 function log(line) {
@@ -246,13 +258,27 @@ async function runCycles(page, profile) {
     const inMs = await waitStage(page, 'os')
     if (inMs >= LIMIT_MS) throw new Error(`FAIL SLOW ${profile.name} #${i} ${via} in=${inMs}ms`)
     if (profile.hold3d) {
-      const display = await page.evaluate(() => window.__crtDebug?.display)
-      if (display !== '3d') {
-        throw new Error(`FAIL ${profile.name} #${i} dropped to display=${display}`)
+      const info = await page.evaluate(() => ({
+        display: window.__crtDebug?.display,
+        judge: window.__crtFpsJudge || null,
+      }))
+      if (info.display !== '3d') {
+        throw new Error(`FAIL ${profile.name} #${i} dropped to display=${info.display} judge=${JSON.stringify(info.judge)}`)
       }
     }
     cycles.push({ cycle: i, via, outMs, inMs })
     log(`  ${profile.name} #${i} ${via} out=${outMs}ms in=${inMs}ms`)
+  }
+  if (profile.assertFirstOut && cycles.length > 1) {
+    const first = cycles[0].outMs
+    const laterMax = Math.max(...cycles.slice(1).map((c) => c.outMs))
+    if (first >= LIMIT_MS) {
+      throw new Error(`FAIL ${profile.name} first zoom-out ${first}ms >= ${LIMIT_MS}ms`)
+    }
+    if (first > laterMax + 400) {
+      throw new Error(`FAIL ${profile.name} first zoom-out ${first}ms vs later max ${laterMax}ms`)
+    }
+    log(`  ${profile.name} first-out ${first}ms later-max ${laterMax}ms`)
   }
   return cycles
 }
@@ -368,6 +394,44 @@ async function loseWebGL(page) {
   })
 }
 
+function nearBox(a, b, tol = 2) {
+  if (!a || !b) return false
+  return (
+    Math.abs(a.left - b.left) <= tol &&
+    Math.abs(a.top - b.top) <= tol &&
+    Math.abs(a.width - b.width) <= tol &&
+    Math.abs(a.height - b.height) <= tol
+  )
+}
+
+async function measureLayout(page) {
+  return page.evaluate(() => {
+    const bezel = document.querySelector('.flat-os-bezel')
+    const os = document.querySelector('.os-root')
+    const boot = document.querySelector('.boot-screen')
+    const hidden = Boolean(os?.hasAttribute('hidden') || os?.closest('[hidden]'))
+    const box = (el) => {
+      if (!el) return null
+      const r = el.getBoundingClientRect()
+      return { left: r.left, top: r.top, width: r.width, height: r.height }
+    }
+    return {
+      bezel: box(bezel),
+      os: hidden ? null : box(os),
+      boot: box(boot),
+    }
+  })
+}
+
+async function captureFlatReference(browser, base) {
+  const { context, page } = await openLossPage(browser, base, true, 'flat=1')
+  await waitStage(page, 'os', 20000)
+  const ref = await measureLayout(page)
+  await context.close()
+  if (!ref.bezel || !ref.os) throw new Error('FAIL could not capture flat OS reference')
+  return ref
+}
+
 async function assertFlatVisible(page, label, pageErrors) {
   await page.waitForFunction(
     () => {
@@ -401,7 +465,18 @@ async function assertFlatVisible(page, label, pageErrors) {
   }
 }
 
-async function openLossPage(browser, base, skipIntro) {
+async function assertFlatLayout(page, ref, label, pageErrors) {
+  await assertFlatVisible(page, label, pageErrors)
+  const got = await measureLayout(page)
+  if (!nearBox(got.bezel, ref.bezel)) {
+    throw new Error(`FAIL ${label} bezel ${JSON.stringify(got.bezel)} != ${JSON.stringify(ref.bezel)}`)
+  }
+  if (got.os && !nearBox(got.os, ref.os)) {
+    throw new Error(`FAIL ${label} os ${JSON.stringify(got.os)} != ${JSON.stringify(ref.os)}`)
+  }
+}
+
+async function openLossPage(browser, base, skipIntro, search = 'force3d=1') {
   const context = await browser.newContext({
     viewport: { width: 412, height: 915 },
     deviceScaleFactor: 3,
@@ -425,26 +500,34 @@ async function openLossPage(browser, base, skipIntro) {
     }
   }, skipIntro)
   const url = new URL(base)
-  url.searchParams.set('force3d', '1')
+  const extra = new URLSearchParams(search)
+  extra.forEach((value, key) => url.searchParams.set(key, value))
   await page.goto(url.toString(), { waitUntil: 'domcontentloaded', timeout: 30000 })
   return { context, page, pageErrors }
 }
 
 async function runContextLossSuite(browser, base) {
   const cases = []
+  const ref = await captureFlatReference(browser, base)
+  log(`  phone-3d-loss ref bezel=${JSON.stringify(ref.bezel)} os=${JSON.stringify(ref.os)}`)
 
   {
-    const { context, page, pageErrors } = await openLossPage(browser, base, false)
+    const { context, page, pageErrors } = await openLossPage(browser, base, true)
+    await waitStage(page, 'os', 20000)
     await page.waitForFunction(() => Boolean(document.querySelector('canvas')), null, {
       timeout: 15000,
       polling: 16,
     })
-    await page.waitForTimeout(40)
     await loseWebGL(page)
-    await assertFlatVisible(page, 'loss-mount', pageErrors)
-    log('  phone-3d-loss mount → flat')
+    const t0 = Date.now()
+    for (const delay of [0, 120, 350, 900, 2200]) {
+      const wait = delay - (Date.now() - t0)
+      if (wait > 0) await page.waitForTimeout(wait)
+      await assertFlatLayout(page, ref, `loss-rest+${delay}`, pageErrors)
+      log(`  phone-3d-loss rest+${delay}ms → full flat`)
+    }
     await context.close()
-    cases.push({ name: 'mount', outMs: 0, inMs: 0 })
+    cases.push({ name: 'rest', outMs: 0, inMs: 0 })
   }
 
   {
@@ -456,8 +539,8 @@ async function runContextLossSuite(browser, base) {
     )
     await page.waitForTimeout(80)
     await loseWebGL(page)
-    await assertFlatVisible(page, 'loss-boot', pageErrors)
-    log('  phone-3d-loss boot → flat')
+    await assertFlatLayout(page, ref, 'loss-boot', pageErrors)
+    log('  phone-3d-loss boot → full flat')
     await context.close()
     cases.push({ name: 'boot', outMs: 0, inMs: 0 })
   }
@@ -468,8 +551,8 @@ async function runContextLossSuite(browser, base) {
     await synthPointer(page, '.zoom-out-btn', 'loss parked zoom out')
     await waitStage(page, 'parked')
     await loseWebGL(page)
-    await assertFlatVisible(page, 'loss-parked', pageErrors)
-    log('  phone-3d-loss parked → flat')
+    await assertFlatLayout(page, ref, 'loss-parked', pageErrors)
+    log('  phone-3d-loss parked → full flat')
     await context.close()
     cases.push({ name: 'parked', outMs: 0, inMs: 0 })
   }
@@ -483,8 +566,8 @@ async function runContextLossSuite(browser, base) {
       polling: 16,
     })
     await loseWebGL(page)
-    await assertFlatVisible(page, 'loss-dolly', pageErrors)
-    log('  phone-3d-loss mid-dolly → flat')
+    await assertFlatLayout(page, ref, 'loss-dolly', pageErrors)
+    log('  phone-3d-loss mid-dolly → full flat')
     await context.close()
     cases.push({ name: 'dolly', outMs: 0, inMs: 0 })
   }

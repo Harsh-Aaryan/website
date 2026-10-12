@@ -63,7 +63,9 @@ The desktop intro is a photoreal CRT on a dark desk in a night room. Models and 
 
 The landing monitor is Poly Haven **Television 02** by Benny Weimer (CC0) — a photoreal vintage CRT. Sketchfab has CC-BY computer CRTs but `/v3/models/{id}/download` returns 401 without a token.
 
-Capable phones (WebGL2, no major-performance caveat, `deviceMemory >= 3` when known, and a ~2s FPS check) get the lite Television 02 scene. `?flat=1`, reduced motion, context loss, or a sustained sub-30 FPS window fall back to the flat CRT. `?force3d=1` forces the 3D path when WebGL exists. The Three.js scene is lazy-loaded.
+Capable phones (WebGL2, no major-performance caveat, `deviceMemory >= 3` when known) get the lite Television 02 scene. `?flat=1`, reduced motion, or context loss fall back to the flat CRT. `?force3d=1` forces the 3D path when WebGL exists. The Three.js scene is lazy-loaded.
+
+**Software vs real GPU.** The probe reads `WEBGL_debug_renderer_info` (`UNMASKED_RENDERER`). If the renderer is a software rasterizer (`SwiftShader`, `llvmpipe`, or `Software`), 3D vs flat is decided once at that probe and the mid-session FpsGuard does **not** run — software rasterizers are not representative of real phones. On a real GPU, a two-strike FpsGuard still scores boot/dolly frames after a ~300ms warm-up (skipping texture/shader upload frames) and falls back if p75 frame time stays worse than ~50ms (20fps) for two consecutive transitions.
 
 ## Layout
 

@@ -7,6 +7,7 @@ import {
   prefersReducedMotion,
   shouldUse3D,
 } from './config'
+import { detectSoftwareGL } from './probe3d'
 import BootScreen from './components/BootScreen'
 import FlatCRT from './components/FlatCRT'
 import LoadingScreen from './components/LoadingScreen'
@@ -70,6 +71,8 @@ function fullBezelBox() {
   }
 }
 
+let handoffFrozen = false
+
 function fadeLiteCanvas(amount) {
   const canvas = document.querySelector('.scene-canvas.is-lite')
   if (!canvas) return
@@ -77,25 +80,49 @@ function fadeLiteCanvas(amount) {
   canvas.style.opacity = String(Math.max(0, Math.min(1, 1 - amount)))
 }
 
+const HANDOFF_STYLE_KEYS = [
+  'left',
+  'top',
+  'right',
+  'bottom',
+  'width',
+  'height',
+  'inset',
+  'clipPath',
+  'opacity',
+  'border',
+  'borderWidth',
+  'borderStyle',
+  'borderColor',
+  'borderRadius',
+  'boxSizing',
+  'transform',
+  'margin',
+  'padding',
+]
+
+function resetHandoffStyles(el) {
+  if (!el) return
+  HANDOFF_STYLE_KEYS.forEach((key) => {
+    el.style[key] = ''
+  })
+  el.classList.remove('is-wiping', 'is-expanding', 'is-framed', 'is-full', 'is-crossfade')
+}
+
 function applyFullBezel(el) {
-  el.style.left = ''
-  el.style.top = ''
-  el.style.width = ''
-  el.style.height = ''
-  el.style.clipPath = 'none'
+  if (handoffFrozen) {
+    resetHandoffStyles(el)
+    return
+  }
+  resetHandoffStyles(el)
   el.style.opacity = '1'
-  el.style.borderRadius = ''
-  el.style.borderWidth = ''
-  el.style.borderStyle = ''
-  el.style.borderColor = ''
-  el.style.boxSizing = ''
-  el.classList.remove('is-wiping', 'is-expanding')
+  el.style.clipPath = 'none'
   el.classList.add('is-full')
   fadeLiteCanvas(1)
 }
 
 function applyOverlayRect(el, rect, zoom, expand = false) {
-  if (!el) return
+  if (!el || handoffFrozen) return
   const expandT = expand ? smoothstep((zoom - 0.85) / 0.15) : 0
   fadeLiteCanvas(expand ? expandT : 0)
   if (expand && zoom >= 0.995) {
@@ -184,11 +211,17 @@ export default function App() {
   const fpsTimes = useRef([])
   const fpsBad = useRef(0)
   const introZoom = useRef(true)
+  const softwareGL = useRef(detectSoftwareGL())
   const recordFps = useCallback((dt) => {
+    if (softwareGL.current) return
     if (dt >= 80) return
     fpsTimes.current.push(dt)
   }, [])
   const judgeFpsSamples = () => {
+    if (softwareGL.current) {
+      fpsTimes.current = []
+      return
+    }
     const times = fpsTimes.current
     fpsTimes.current = []
     if (times.length < 8) return
@@ -306,16 +339,7 @@ export default function App() {
   }, [])
 
   const clearOverlayFrame = () => {
-    const el = overlayRef.current
-    if (!el) return
-    el.style.left = ''
-    el.style.top = ''
-    el.style.width = ''
-    el.style.height = ''
-    el.style.clipPath = 'none'
-    el.style.opacity = '1'
-    el.style.borderRadius = ''
-    el.classList.remove('is-crossfade')
+    resetHandoffStyles(overlayRef.current)
   }
 
   const stopPump = () => {
@@ -577,6 +601,8 @@ export default function App() {
     }
     dying3d.current = true
     use3dRef.current = false
+    handoffFrozen = true
+    window.__crtHandoffFrozen = true
     window.__crtDebug = {
       ...(window.__crtDebug || {}),
       display: 'flat',
@@ -596,9 +622,11 @@ export default function App() {
     stopPump()
     motionRef.current.running = false
     motionRef.current.dir = null
+    resetHandoffStyles(overlayRef.current)
+    fadeLiteCanvas(1)
     publishDebug()
     const settle = () => {
-      clearOverlayFrame()
+      resetHandoffStyles(overlayRef.current)
       glassRectRef.current = null
       setUse3d(false)
       setSceneHeld(false)
@@ -625,11 +653,16 @@ export default function App() {
   }, [advanceZoom, goStage, landOnOs, publishDebug])
 
   useEffect(() => {
-    if (!lite) return
+    if (!lite || softwareGL.current) return
     if (stage !== 'os' && stage !== 'parked') return
     if (fpsBad.current < 2) return
     abandon3d()
   }, [abandon3d, lite, stage])
+
+  useEffect(() => {
+    if (!handoffFrozen) return
+    resetHandoffStyles(overlayRef.current)
+  }, [osMounted, stage, use3d, overlayOn])
 
   useEffect(() => {
     if (stage !== 'os') return
@@ -702,6 +735,10 @@ export default function App() {
   }, [abandon3d, use3d])
 
   useEffect(() => {
+    if (handoffFrozen) {
+      resetHandoffStyles(overlayRef.current)
+      return
+    }
     if (!overlayOn && stage !== 'os') return
     applyOverlayRect(overlayRef.current, glassRectRef.current, zoomRef.current, liteRef.current)
   }, [overlayOn, stage])
@@ -836,7 +873,7 @@ export default function App() {
                 stage === 'zooming' ||
                 !ready3d
               }
-              fpsActive={lite && (stage === 'boot' || stage === 'zooming')}
+              fpsActive={lite && !softwareGL.current && (stage === 'boot' || stage === 'zooming')}
               onFrame={recordFps}
               suspended={sceneHeld}
               onContextLost={abandon3d}
@@ -845,6 +882,7 @@ export default function App() {
                 startZoom()
               }}
               onGlassRect={(rect) => {
+                if (handoffFrozen) return
                 glassRectRef.current = rect
                 window.__glassMetrics = rect
                 if (overlayVisible || overlayOnRef.current) {

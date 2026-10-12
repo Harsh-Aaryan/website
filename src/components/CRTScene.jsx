@@ -118,11 +118,15 @@ function curveGeometry(width, height, bend = 0.028) {
   return geo
 }
 
+const WARMUP_ZOOMS = [0, 0.2, 0.45, 0.7, 1, 0.35, 0]
+
 function ShaderWarmup({ zoomRef, glassCenterRef, glassSizeRef, bootMap, lite, onWarmed }) {
   const { gl, scene, camera, size } = useThree()
   const { active, progress, loaded } = useProgress()
   const warmed = useRef(false)
   const born = useRef(performance.now())
+  const phase = useRef(0)
+  const saved = useRef(0)
 
   useFrame(() => {
     if (warmed.current) return
@@ -130,29 +134,33 @@ function ShaderWarmup({ zoomRef, glassCenterRef, glassSizeRef, bootMap, lite, on
     const assetsIn = !active && loaded > 0 && progress >= 99
     if (!assetsIn && waited < 8000) return
     if (!glassSizeRef?.current?.[0] && waited < 8000) return
-    warmed.current = true
-    const saved = zoomRef.current
     const aspect = size.width / Math.max(1, size.height)
-    try {
-      if (bootMap && typeof gl.initTexture === 'function') {
-        gl.initTexture(bootMap)
-      }
-      scene.traverse((obj) => {
-        const mats = obj.material ? (Array.isArray(obj.material) ? obj.material : [obj.material]) : []
-        mats.forEach((mat) => {
-          ;['map', 'emissiveMap', 'normalMap', 'roughnessMap', 'envMap'].forEach((key) => {
-            if (mat[key] && typeof gl.initTexture === 'function') {
-              try {
-                gl.initTexture(mat[key])
-              } catch {
-                /* ignore */
+    if (phase.current === 0) {
+      saved.current = zoomRef.current
+      try {
+        if (bootMap && typeof gl.initTexture === 'function') gl.initTexture(bootMap)
+        scene.traverse((obj) => {
+          const mats = obj.material ? (Array.isArray(obj.material) ? obj.material : [obj.material]) : []
+          mats.forEach((mat) => {
+            ;['map', 'emissiveMap', 'normalMap', 'roughnessMap', 'envMap'].forEach((key) => {
+              if (mat[key] && typeof gl.initTexture === 'function') {
+                try {
+                  gl.initTexture(mat[key])
+                } catch {
+                  /* ignore */
+                }
               }
-            }
+            })
           })
         })
-      })
-      for (const t of [0, 0.45, 1]) {
-        zoomRef.current = t
+      } catch {
+        /* context may already be gone */
+      }
+    }
+    if (phase.current < WARMUP_ZOOMS.length) {
+      const t = WARMUP_ZOOMS[phase.current]
+      zoomRef.current = t
+      try {
         const lookEnd = glassCenterRef?.current || GLASS_LOOK
         const start = startCamForAspect(aspect, lookEnd, glassSizeRef.current, lite)
         const end = endCamForAspect(aspect, lookEnd, glassSizeRef.current, lite)
@@ -164,11 +172,18 @@ function ShaderWarmup({ zoomRef, glassCenterRef, glassSizeRef, bootMap, lite, on
         camera.updateProjectionMatrix()
         gl.compile(scene, camera)
         gl.render(scene, camera)
+      } catch {
+        /* context may already be gone */
       }
-    } catch {
-      /* context may already be gone */
+      phase.current += 1
+      return
     }
-    zoomRef.current = saved
+    if (phase.current < WARMUP_ZOOMS.length + 2) {
+      phase.current += 1
+      return
+    }
+    zoomRef.current = saved.current
+    warmed.current = true
     window.__crtWarmed = true
     onWarmed?.()
   })
