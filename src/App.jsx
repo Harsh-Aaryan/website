@@ -13,8 +13,6 @@ import LoadingScreen from './components/LoadingScreen'
 import OperatingSystem from './components/OperatingSystem'
 import { useCrtAudio } from './hooks/useCrtAudio'
 
-const CRTScene = lazy(() => import('./components/CRTScene'))
-
 function readStored(key, fallback) {
   try {
     const value = localStorage.getItem(key)
@@ -118,13 +116,24 @@ function applyOverlayRect(el, rect, zoom, expand = false) {
   el.classList.toggle('is-full', expand && expandT >= 0.995)
 }
 
-function zoomDuration(dir, fromStage, use3d, reduced) {
+function zoomDuration(dir, fromStage, use3d, reduced, lite) {
   if (reduced) return 0
   if (!use3d) return TIMING.crossfadeMs
+  if (lite) return TIMING.phoneZoomMs
   if (dir === 'parked') return TIMING.zoomOutMs
   if (fromStage === 'boot' || fromStage === 'loading') return TIMING.zoomMs
   return TIMING.zoomOutMs
 }
+
+const sceneImport = (() => {
+  try {
+    if (isPhoneLike()) return import('./components/CRTSceneLite')
+    return import('./components/CRTScene')
+  } catch {
+    return import('./components/CRTScene')
+  }
+})()
+const Scene3D = lazy(() => sceneImport)
 
 export default function App() {
   const skipStored = readStored(STORAGE.skipIntro, '') === '1'
@@ -135,6 +144,20 @@ export default function App() {
   const force3d = new URLSearchParams(window.location.search).get('force3d') === '1'
   const liteRef = useRef(lite)
   liteRef.current = lite
+  const fpsTimes = useRef([])
+  const fpsBad = useRef(0)
+  const recordFps = useCallback((dt) => {
+    fpsTimes.current.push(dt)
+  }, [])
+  const judgeFpsSamples = () => {
+    const times = fpsTimes.current
+    fpsTimes.current = []
+    if (times.length < 8) return
+    const sorted = times.slice().sort((a, b) => a - b)
+    const p75 = sorted[Math.floor((sorted.length - 1) * 0.75)]
+    if (p75 > 1000 / 30) fpsBad.current += 1
+    else fpsBad.current = 0
+  }
 
   const [stage, setStage] = useState(() => {
     if (skipStored) return 'os'
@@ -330,6 +353,7 @@ export default function App() {
         setOverlayOn(false)
         setOsMounted(true)
         window.setTimeout(() => parkedRef.current?.focus(), 40)
+        judgeFpsSamples()
         return
       }
 
@@ -344,6 +368,7 @@ export default function App() {
       setOverlayOn(true)
       setOsMounted(true)
       landOnOs()
+      judgeFpsSamples()
     },
     [goStage, landOnOs, publishDebug]
   )
@@ -396,7 +421,8 @@ export default function App() {
     (dir) => {
       const fromStage = stageRef.current
       const from = zoomRef.current
-      const duration = zoomDuration(dir, fromStage, use3dRef.current, reducedRef.current)
+      const duration = zoomDuration(dir, fromStage, use3dRef.current, reducedRef.current, liteRef.current)
+      fpsTimes.current = []
       motionRef.current = {
         dir,
         from,
@@ -405,9 +431,18 @@ export default function App() {
         running: true,
       }
       goStage('zooming')
-      setOsMounted(true)
-      if (dir === 'parked') {
+      if (!liteRef.current) setOsMounted(true)
+      if (dir === 'parked' && !liteRef.current) {
         announce('Zoomed out to monitor. Press any key to return.')
+      }
+      if (dir === 'parked' && liteRef.current) {
+        window.setTimeout(() => announce('Zoomed out to monitor. Press any key to return.'), 0)
+      }
+      if (liteRef.current && use3dRef.current && !reducedRef.current) {
+        publishDebug()
+        advanceZoom()
+        if (motionRef.current.running) pumpZoom()
+        return
       }
       if (!use3dRef.current || reducedRef.current) {
         overlayOnRef.current = true
@@ -431,7 +466,7 @@ export default function App() {
       const now = performance.now()
       const current = zoomRef.current
       const remaining = dir === 'os' ? 1 - current : current
-      const full = zoomDuration(dir, 'zooming', use3dRef.current, reducedRef.current)
+      const full = zoomDuration(dir, 'zooming', use3dRef.current, reducedRef.current, liteRef.current)
       motion.dir = dir
       motion.from = current
       motion.start = now
@@ -536,6 +571,13 @@ export default function App() {
       window.requestAnimationFrame(settle)
     })
   }, [advanceZoom, goStage, landOnOs, publishDebug])
+
+  useEffect(() => {
+    if (!lite || force3d) return
+    if (stage !== 'os' && stage !== 'parked') return
+    if (fpsBad.current < 2) return
+    abandon3d()
+  }, [abandon3d, force3d, lite, stage])
 
   useEffect(() => {
     if (stage !== 'os') return
@@ -716,7 +758,7 @@ export default function App() {
         <>
           <div className="room-fallback" aria-hidden="true" />
           <Suspense fallback={<LoadingScreen progress={loadProgress} compact />}>
-            <CRTScene
+            <Scene3D
               zoomRef={zoomRef}
               onReady={() => setReady3d(true)}
               onProgress={setLoadProgress}
@@ -731,10 +773,14 @@ export default function App() {
                 stage === 'zooming' ||
                 !ready3d
               }
-              onSlow={lite && !force3d ? abandon3d : undefined}
+              fpsActive={lite && (stage === 'boot' || stage === 'zooming')}
+              onFrame={recordFps}
               suspended={sceneHeld}
               onContextLost={abandon3d}
-              onBootReady={startZoom}
+              onBootReady={() => {
+                judgeFpsSamples()
+                startZoom()
+              }}
               onGlassRect={(rect) => {
                 glassRectRef.current = rect
                 window.__glassMetrics = rect

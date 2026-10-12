@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-const HEAVY_3D = /three|CRTScene|@react-three|postprocessing/i
+const HEAVY_3D = /three|CRTScene|CRTSceneLite|@react-three|postprocessing/i
 
 export default defineConfig({
   plugins: [react()],
