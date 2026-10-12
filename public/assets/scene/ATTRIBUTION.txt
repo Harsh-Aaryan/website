@@ -5,6 +5,7 @@
    Source: https://polyhaven.com/a/television_02
    License: CC0 1.0
    File: r2/television_02.glb (meshopt + 2048 WebP textures ~294KB)
+   Phone: r2/television_02_1k.glb (meshopt + 1024 WebP textures ~143KB)
 
 2. Unfinished Office Night HDRI
    Author: Sergej Majboroda

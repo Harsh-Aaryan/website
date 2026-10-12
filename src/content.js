@@ -157,7 +157,7 @@ export const SCENE_CREDITS = [
     author: 'Benny Weimer',
     source: 'https://polyhaven.com/a/television_02',
     license: 'CC0 1.0',
-    note: 'Photoreal vintage CRT (meshopt + 2048 WebP)',
+    note: 'Photoreal vintage CRT (meshopt + 2048 WebP; phone 1K WebP)',
   },
   {
     title: 'Unfinished Office Night HDRI',

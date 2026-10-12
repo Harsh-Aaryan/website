@@ -1,18 +1,18 @@
-import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import React, { Component, lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import {
   STORAGE,
   TIMING,
   applyTheme,
+  isPhoneLike,
   prefersReducedMotion,
   shouldUse3D,
 } from './config'
+import { detectSoftwareGL } from './probe3d'
 import BootScreen from './components/BootScreen'
 import FlatCRT from './components/FlatCRT'
 import LoadingScreen from './components/LoadingScreen'
 import OperatingSystem from './components/OperatingSystem'
 import { useCrtAudio } from './hooks/useCrtAudio'
-
-const CRTScene = lazy(() => import('./components/CRTScene'))
 
 function readStored(key, fallback) {
   try {
@@ -57,29 +57,147 @@ function glassBox(rect) {
   return visibleGlassRect(rect)
 }
 
-function applyOverlayRect(el, rect, zoom) {
-  if (!el || !rect) return
-  const box = glassBox(rect)
-  const wipe = smoothstep((zoom - 0.9) / 0.1)
+function lerpNum(a, b, t) {
+  return a + (b - a) * t
+}
+
+function fullBezelBox() {
+  const inset = window.innerWidth <= 768 ? 10 : 0
+  return {
+    left: inset,
+    top: inset,
+    width: Math.max(1, window.innerWidth - inset * 2),
+    height: Math.max(1, window.innerHeight - inset * 2),
+  }
+}
+
+let handoffFrozen = false
+
+function fadeLiteCanvas(amount) {
+  const canvas = document.querySelector('.scene-canvas.is-lite')
+  if (!canvas) return
+  canvas.style.transition = 'none'
+  canvas.style.opacity = String(Math.max(0, Math.min(1, 1 - amount)))
+}
+
+const HANDOFF_STYLE_KEYS = [
+  'left',
+  'top',
+  'right',
+  'bottom',
+  'width',
+  'height',
+  'inset',
+  'clipPath',
+  'opacity',
+  'border',
+  'borderWidth',
+  'borderStyle',
+  'borderColor',
+  'borderRadius',
+  'boxSizing',
+  'transform',
+  'margin',
+  'padding',
+]
+
+function resetHandoffStyles(el) {
+  if (!el) return
+  HANDOFF_STYLE_KEYS.forEach((key) => {
+    el.style[key] = ''
+  })
+  el.classList.remove('is-wiping', 'is-expanding', 'is-framed', 'is-full', 'is-crossfade')
+}
+
+function applyFullBezel(el) {
+  if (handoffFrozen) {
+    resetHandoffStyles(el)
+    return
+  }
+  resetHandoffStyles(el)
+  el.style.opacity = '1'
+  el.style.clipPath = 'none'
+  el.classList.add('is-full')
+  fadeLiteCanvas(1)
+}
+
+function applyOverlayRect(el, rect, zoom, expand = false) {
+  if (!el || handoffFrozen) return
+  const expandT = expand ? smoothstep((zoom - 0.85) / 0.15) : 0
+  fadeLiteCanvas(expand ? expandT : 0)
+  if (expand && zoom >= 0.995) {
+    applyFullBezel(el)
+    return
+  }
+  if (!rect) return
+  const glass = glassBox(rect)
+  const dest = fullBezelBox()
+  const box =
+    expandT > 0
+      ? {
+          left: lerpNum(glass.left, dest.left, expandT),
+          top: lerpNum(glass.top, dest.top, expandT),
+          width: lerpNum(glass.width, dest.width, expandT),
+          height: lerpNum(glass.height, dest.height, expandT),
+        }
+      : glass
+  const wipe = expand ? Math.max(expandT, smoothstep((zoom - 0.85) / 0.06)) : smoothstep((zoom - 0.9) / 0.1)
+  el.style.boxSizing = 'border-box'
   el.style.left = `${box.left}px`
   el.style.top = `${box.top}px`
   el.style.width = `${box.width}px`
   el.style.height = `${box.height}px`
-  const rad = Math.max(6, Math.min(box.width, box.height) * 0.026)
+  const rad = lerpNum(Math.max(6, Math.min(box.width, box.height) * 0.026), 8, expandT)
   el.style.borderRadius = `${rad.toFixed(1)}px`
+  el.style.borderStyle = expand ? 'solid' : ''
+  el.style.borderColor = expand ? '#c4b08a' : ''
+  el.style.borderWidth = expand ? `${(expandT * 10).toFixed(2)}px` : ''
   const hidden = (1 - wipe) * 100
-  el.style.clipPath = wipe >= 0.995 ? 'none' : `inset(0 0 ${hidden.toFixed(2)}% 0)`
-  el.style.opacity = wipe > 0.02 ? '1' : '0'
-  el.classList.toggle('is-framed', true)
-  el.classList.toggle('is-wiping', wipe > 0.02 && wipe < 0.995)
+  el.style.clipPath = wipe >= 0.995 || expandT > 0.04 ? 'none' : `inset(0 0 ${hidden.toFixed(2)}% 0)`
+  el.style.opacity = wipe > 0.02 || expandT > 0 ? '1' : '0'
+  el.classList.toggle('is-framed', expandT < 0.995)
+  el.classList.toggle('is-wiping', !expand && wipe > 0.02 && wipe < 0.995)
+  el.classList.toggle('is-expanding', expand && expandT > 0 && expandT < 0.995)
+  el.classList.toggle('is-full', false)
 }
 
-function zoomDuration(dir, fromStage, use3d, reduced) {
+function zoomDuration(dir, fromStage, use3d, reduced, lite) {
   if (reduced) return 0
   if (!use3d) return TIMING.crossfadeMs
+  if (lite) return TIMING.phoneZoomMs
   if (dir === 'parked') return TIMING.zoomOutMs
   if (fromStage === 'boot' || fromStage === 'loading') return TIMING.zoomMs
   return TIMING.zoomOutMs
+}
+
+const sceneImport = (() => {
+  try {
+    if (isPhoneLike()) return import('./components/CRTSceneLite')
+    return import('./components/CRTScene')
+  } catch {
+    return import('./components/CRTScene')
+  }
+})()
+const Scene3D = lazy(() => sceneImport)
+
+class SceneGuard extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { failed: false }
+  }
+
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+
+  componentDidCatch() {
+    this.props.onFail?.()
+  }
+
+  render() {
+    if (this.state.failed) return null
+    return this.props.children
+  }
 }
 
 export default function App() {
@@ -87,6 +205,33 @@ export default function App() {
   const reduced = prefersReducedMotion()
   const zoomParam = readZoomParam()
   const [use3d, setUse3d] = useState(() => shouldUse3D())
+  const lite = use3d && isPhoneLike()
+  const liteRef = useRef(lite)
+  liteRef.current = lite
+  const fpsTimes = useRef([])
+  const fpsBad = useRef(0)
+  const introZoom = useRef(true)
+  const softwareGL = useRef(detectSoftwareGL())
+  const recordFps = useCallback((dt) => {
+    if (softwareGL.current) return
+    if (dt >= 80) return
+    fpsTimes.current.push(dt)
+  }, [])
+  const judgeFpsSamples = () => {
+    if (softwareGL.current) {
+      fpsTimes.current = []
+      return
+    }
+    const times = fpsTimes.current
+    fpsTimes.current = []
+    if (times.length < 8) return
+    const sorted = times.slice().sort((a, b) => a - b)
+    const p75 = sorted[Math.floor((sorted.length - 1) * 0.75)]
+    const slow = times.filter((dt) => dt > 50).length
+    if (p75 > 58 && slow / times.length >= 0.5) fpsBad.current += 1
+    else fpsBad.current = 0
+    window.__crtFpsJudge = { p75, count: times.length, slow, bad: fpsBad.current }
+  }
 
   const [stage, setStage] = useState(() => {
     if (skipStored) return 'os'
@@ -185,20 +330,16 @@ export default function App() {
       target: motion.dir || stageRef.current,
       display: use3dRef.current ? '3d' : 'flat',
       running: Boolean(motion.running),
+      lite: Boolean(use3dRef.current && isPhoneLike()),
+      osFrame:
+        use3dRef.current && isPhoneLike() && stageRef.current === 'os' ? 'bezel' : use3dRef.current ? 'glass' : 'flat',
+      draws: window.__crtDraws ?? 0,
+      fps: window.__crtFps ?? null,
     }
   }, [])
 
   const clearOverlayFrame = () => {
-    const el = overlayRef.current
-    if (!el) return
-    el.style.left = ''
-    el.style.top = ''
-    el.style.width = ''
-    el.style.height = ''
-    el.style.clipPath = 'none'
-    el.style.opacity = '1'
-    el.style.borderRadius = ''
-    el.classList.remove('is-crossfade')
+    resetHandoffStyles(overlayRef.current)
   }
 
   const stopPump = () => {
@@ -249,13 +390,14 @@ export default function App() {
       }
       return
     }
-    if (motion.dir === 'os' && zoomRef.current >= 0.9 && !overlayOnRef.current) {
+    const appearAt = liteRef.current ? 0.85 : 0.9
+    if (motion.dir === 'os' && zoomRef.current >= appearAt && !overlayOnRef.current) {
       overlayOnRef.current = true
       setOsMounted(true)
       setOverlayOn(true)
     }
-    if (motion.dir === 'parked' && zoomRef.current < 0.9) overlayOnRef.current = true
-    applyOverlayRect(el, glassRectRef.current, zoomRef.current)
+    if (motion.dir === 'parked' && zoomRef.current < appearAt) overlayOnRef.current = true
+    applyOverlayRect(el, glassRectRef.current, zoomRef.current, liteRef.current)
   }
 
   const finishMotion = useCallback(
@@ -275,7 +417,9 @@ export default function App() {
         publishDebug()
         setOverlayOn(false)
         setOsMounted(true)
+        fadeLiteCanvas(0)
         window.setTimeout(() => parkedRef.current?.focus(), 40)
+        judgeFpsSamples()
         return
       }
 
@@ -283,12 +427,19 @@ export default function App() {
       overlayOnRef.current = true
       persistSkip()
       if (el && !use3dRef.current) el.style.opacity = '1'
+      if (el && liteRef.current) applyFullBezel(el)
       pendingLand.current = true
       goStage('os')
       publishDebug()
       setOverlayOn(true)
       setOsMounted(true)
       landOnOs()
+      if (introZoom.current) {
+        introZoom.current = false
+        fpsTimes.current = []
+      } else {
+        judgeFpsSamples()
+      }
     },
     [goStage, landOnOs, publishDebug]
   )
@@ -341,7 +492,8 @@ export default function App() {
     (dir) => {
       const fromStage = stageRef.current
       const from = zoomRef.current
-      const duration = zoomDuration(dir, fromStage, use3dRef.current, reducedRef.current)
+      const duration = zoomDuration(dir, fromStage, use3dRef.current, reducedRef.current, liteRef.current)
+      fpsTimes.current = []
       motionRef.current = {
         dir,
         from,
@@ -350,9 +502,18 @@ export default function App() {
         running: true,
       }
       goStage('zooming')
-      setOsMounted(true)
-      if (dir === 'parked') {
+      if (!liteRef.current) setOsMounted(true)
+      if (dir === 'parked' && !liteRef.current) {
         announce('Zoomed out to monitor. Press any key to return.')
+      }
+      if (dir === 'parked' && liteRef.current) {
+        window.setTimeout(() => announce('Zoomed out to monitor. Press any key to return.'), 0)
+      }
+      if (liteRef.current && use3dRef.current && !reducedRef.current) {
+        publishDebug()
+        advanceZoom()
+        if (motionRef.current.running) pumpZoom()
+        return
       }
       if (!use3dRef.current || reducedRef.current) {
         overlayOnRef.current = true
@@ -376,7 +537,7 @@ export default function App() {
       const now = performance.now()
       const current = zoomRef.current
       const remaining = dir === 'os' ? 1 - current : current
-      const full = zoomDuration(dir, 'zooming', use3dRef.current, reducedRef.current)
+      const full = zoomDuration(dir, 'zooming', use3dRef.current, reducedRef.current, liteRef.current)
       motion.dir = dir
       motion.from = current
       motion.start = now
@@ -440,6 +601,14 @@ export default function App() {
     }
     dying3d.current = true
     use3dRef.current = false
+    handoffFrozen = true
+    window.__crtHandoffFrozen = true
+    window.__crtDebug = {
+      ...(window.__crtDebug || {}),
+      display: 'flat',
+      lite: false,
+      osFrame: 'flat',
+    }
     setSceneHeld(true)
     const running = motionRef.current.running
     const target = motionRef.current.dir
@@ -453,8 +622,11 @@ export default function App() {
     stopPump()
     motionRef.current.running = false
     motionRef.current.dir = null
+    resetHandoffStyles(overlayRef.current)
+    fadeLiteCanvas(1)
+    publishDebug()
     const settle = () => {
-      clearOverlayFrame()
+      resetHandoffStyles(overlayRef.current)
       glassRectRef.current = null
       setUse3d(false)
       setSceneHeld(false)
@@ -477,10 +649,20 @@ export default function App() {
       }
       publishDebug()
     }
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(settle)
-    })
+    settle()
   }, [advanceZoom, goStage, landOnOs, publishDebug])
+
+  useEffect(() => {
+    if (!lite || softwareGL.current) return
+    if (stage !== 'os' && stage !== 'parked') return
+    if (fpsBad.current < 2) return
+    abandon3d()
+  }, [abandon3d, lite, stage])
+
+  useEffect(() => {
+    if (!handoffFrozen) return
+    resetHandoffStyles(overlayRef.current)
+  }, [osMounted, stage, use3d, overlayOn])
 
   useEffect(() => {
     if (stage !== 'os') return
@@ -519,8 +701,18 @@ export default function App() {
       event.preventDefault()
       abandon3d()
     }
+    const onErr = (event) => {
+      const msg = event?.message || event?.error?.message || ''
+      if (!/precision|WebGL|webgl|WEBGL|context lost|WEBGL_LOST/i.test(msg)) return
+      event.preventDefault?.()
+      abandon3d()
+    }
     window.addEventListener('webglcontextlost', onLost, true)
-    return () => window.removeEventListener('webglcontextlost', onLost, true)
+    window.addEventListener('error', onErr)
+    return () => {
+      window.removeEventListener('webglcontextlost', onLost, true)
+      window.removeEventListener('error', onErr)
+    }
   }, [abandon3d])
 
   useEffect(() => {
@@ -543,8 +735,12 @@ export default function App() {
   }, [abandon3d, use3d])
 
   useEffect(() => {
+    if (handoffFrozen) {
+      resetHandoffStyles(overlayRef.current)
+      return
+    }
     if (!overlayOn && stage !== 'os') return
-    applyOverlayRect(overlayRef.current, glassRectRef.current, zoomRef.current)
+    applyOverlayRect(overlayRef.current, glassRectRef.current, zoomRef.current, liteRef.current)
   }, [overlayOn, stage])
 
   useEffect(() => {
@@ -594,6 +790,7 @@ export default function App() {
     setOsMounted(true)
     pendingLand.current = true
     goStage('os')
+    if (liteRef.current && overlayRef.current) applyFullBezel(overlayRef.current)
     landOnOs()
     publishDebug()
   }
@@ -645,6 +842,7 @@ export default function App() {
       className="app"
       id="os-main"
       data-display={use3d ? '3d' : 'flat'}
+      data-lite={lite ? '1' : '0'}
       data-stage={stage}
       data-lock={stage === 'zooming' ? '1' : '0'}
     >
@@ -659,7 +857,8 @@ export default function App() {
         <>
           <div className="room-fallback" aria-hidden="true" />
           <Suspense fallback={<LoadingScreen progress={loadProgress} compact />}>
-            <CRTScene
+            <SceneGuard onFail={abandon3d}>
+            <Scene3D
               zoomRef={zoomRef}
               onReady={() => setReady3d(true)}
               onProgress={setLoadProgress}
@@ -667,17 +866,31 @@ export default function App() {
               reducedMotion={reduced}
               revealed={ready3d || stage === 'os' || stage === 'parked'}
               enableDof={false}
+              lite={lite}
+              busy={
+                stage === 'loading' ||
+                stage === 'boot' ||
+                stage === 'zooming' ||
+                !ready3d
+              }
+              fpsActive={lite && !softwareGL.current && (stage === 'boot' || stage === 'zooming')}
+              onFrame={recordFps}
               suspended={sceneHeld}
               onContextLost={abandon3d}
-              onBootReady={startZoom}
+              onBootReady={() => {
+                fpsTimes.current = []
+                startZoom()
+              }}
               onGlassRect={(rect) => {
+                if (handoffFrozen) return
                 glassRectRef.current = rect
                 window.__glassMetrics = rect
                 if (overlayVisible || overlayOnRef.current) {
-                  applyOverlayRect(overlayRef.current, rect, zoomRef.current)
+                  applyOverlayRect(overlayRef.current, rect, zoomRef.current, liteRef.current)
                 }
               }}
             />
+            </SceneGuard>
           </Suspense>
         </>
       )}
@@ -699,7 +912,7 @@ export default function App() {
       {osMounted && (
         <div
           ref={overlayRef}
-          className={use3d ? 'screen-overlay is-framed' : 'flat-os-bezel'}
+          className={lite && stage === 'os' ? 'flat-os-bezel' : use3d ? 'screen-overlay is-framed' : 'flat-os-bezel'}
           hidden={use3d ? !overlayVisible : !(overlayVisible || stage === 'parked')}
         >
           <div hidden={!use3d && stage === 'parked'} style={{ height: '100%' }}>
@@ -711,18 +924,17 @@ export default function App() {
         </div>
       )}
 
-      {use3d && (stage === 'parked' || stage === 'zooming') && !overlayVisible && (
+      {use3d && stage === 'parked' && !overlayVisible && (
         <button
           type="button"
           className="scene-recover"
-          aria-label="Press any key to return to HARSH.OS"
+          aria-hidden="true"
+          tabIndex={-1}
           onPointerDown={(event) => {
             event.preventDefault()
             startZoom()
           }}
-        >
-          <span className="visually-hidden">Press any key to return to HARSH.OS</span>
-        </button>
+        />
       )}
 
       {stage === 'parked' && (

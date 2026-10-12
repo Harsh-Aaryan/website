@@ -2,6 +2,7 @@
  * HARSH.OS visual and motion settings.
  * Change phosphor colors, CRT intensity, and intro timing here.
  */
+import { canAttemptPhone3D } from './probe3d'
 export const THEMES = {
   amber: {
     id: 'amber',
@@ -54,6 +55,7 @@ export const TIMING = {
   bootHoldMs: 280,
   zoomMs: 2600,
   zoomOutMs: 1800,
+  phoneZoomMs: 1400,
   zoomWatchMs: 4000,
   crossfadeMs: 420,
   handoffFlashMs: 180,
@@ -92,7 +94,7 @@ export function isMobileViewport() {
   return window.matchMedia(`(max-width: ${BREAKPOINT_MOBILE}px)`).matches
 }
 
-/** Phones stay flat. Tablets and touch laptops at 800+ keep 3D. */
+/** Phones get a lite 3D CRT when the capability probe passes. */
 export function isPhoneLike() {
   const ua = navigator.userAgent || ''
   const uaMobile = /iPhone|iPod/i.test(ua) || (/Android/i.test(ua) && /Mobile/i.test(ua))
@@ -106,11 +108,15 @@ export function isPhoneLike() {
 export function hasWebGL() {
   try {
     const canvas = document.createElement('canvas')
-    return Boolean(
+    const ctx =
       canvas.getContext('webgl2') ||
-        canvas.getContext('webgl') ||
-        canvas.getContext('experimental-webgl')
-    )
+      canvas.getContext('webgl') ||
+      canvas.getContext('experimental-webgl')
+    if (!ctx || ctx.isContextLost?.()) return false
+    ctx.getShaderPrecisionFormat?.(ctx.FRAGMENT_SHADER, ctx.HIGH_FLOAT)?.precision
+    ctx.getParameter?.(ctx.MAX_TEXTURE_SIZE)
+    ctx.getExtension?.('WEBGL_lose_context')
+    return true
   } catch {
     return false
   }
@@ -121,6 +127,7 @@ export function shouldUse3D() {
   if (params.get('flat') === '1') return false
   if (params.get('force3d') === '1') return hasWebGL()
   if (prefersReducedMotion()) return false
-  if (isPhoneLike()) return false
+  if (typeof navigator.deviceMemory === 'number' && navigator.deviceMemory < 3) return false
+  if (isPhoneLike()) return canAttemptPhone3D()
   return hasWebGL()
 }

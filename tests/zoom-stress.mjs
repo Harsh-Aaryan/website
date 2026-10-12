@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Deterministic zoom-trigger stress: 20 out/in cycles on phone (flat)
- * and desktop-site (3D) profiles, plus a mid-transition reverse suite.
+ * Deterministic zoom-trigger stress: 20 out/in cycles on phone-flat,
+ * phone-3d, and desktop-site (3D) profiles, plus reverse / fallback suites.
  * Synthetic pointer events + 4x CPU.
  * Fails loudly if any trigger does not reach its target stage within 2.5s.
  */
@@ -27,6 +27,7 @@ const PROFILES = [
     userAgent: PHONE_UA,
     expectDisplay: 'flat',
     reverse: false,
+    search: 'flat=1',
   },
   {
     name: 'phone-flat-reverse',
@@ -37,6 +38,35 @@ const PROFILES = [
     userAgent: PHONE_UA,
     expectDisplay: 'flat',
     reverse: true,
+    search: 'flat=1',
+  },
+  {
+    name: 'phone-3d',
+    viewport: { width: 412, height: 915 },
+    deviceScaleFactor: 3,
+    isMobile: true,
+    hasTouch: true,
+    userAgent: PHONE_UA,
+    expectDisplay: '3d',
+    reverse: false,
+    search: 'force3d=1',
+    mixTriggers: true,
+    extras: true,
+    cpu: 4,
+  },
+  {
+    name: 'phone-3d-1x',
+    viewport: { width: 412, height: 915 },
+    deviceScaleFactor: 3,
+    isMobile: true,
+    hasTouch: true,
+    userAgent: PHONE_UA,
+    expectDisplay: '3d',
+    reverse: false,
+    search: 'force3d=1',
+    mixTriggers: true,
+    hold3d: true,
+    cpu: 1,
   },
   {
     name: 'desktop-site-3d',
@@ -47,6 +77,18 @@ const PROFILES = [
     userAgent: DESKTOP_UA,
     expectDisplay: '3d',
     reverse: false,
+  },
+  {
+    name: 'desktop-1280-3d',
+    viewport: { width: 1280, height: 800 },
+    deviceScaleFactor: 1,
+    isMobile: false,
+    hasTouch: false,
+    userAgent: DESKTOP_UA,
+    expectDisplay: '3d',
+    reverse: false,
+    assertFirstOut: true,
+    cpu: 4,
   },
 ]
 
@@ -111,7 +153,8 @@ async function waitStage(page, want, ms = LIMIT_MS) {
     await page.waitForFunction(
       (stage) => {
         const d = window.__crtDebug
-        return Boolean(d && d.stage === stage && d.lock === false)
+        const dom = document.querySelector('#os-main')?.dataset?.stage
+        return Boolean((d && d.stage === stage && d.lock === false) || dom === stage)
       },
       want,
       { timeout: ms, polling: 16 }
@@ -140,15 +183,51 @@ async function waitReady(page, profile) {
       null,
       { timeout: 20000, polling: 50 }
     )
+    if (profile.extras) {
+      const info = await page.evaluate(() => {
+        const os = document.querySelector('.flat-os-bezel .os-root') || document.querySelector('.os-root')
+        const r = os?.getBoundingClientRect()
+        return {
+          lite: window.__crtDebug?.lite,
+          osFrame: window.__crtDebug?.osFrame,
+          height: r?.height || 0,
+        }
+      })
+      if (!info.lite) throw new Error(`FAIL ${profile.name} expected lite 3D`)
+      if (info.osFrame !== 'bezel') throw new Error(`FAIL ${profile.name} osFrame=${info.osFrame}`)
+      if (info.height < 600) throw new Error(`FAIL ${profile.name} OS height ${info.height} < 600`)
+    }
   }
   return { bootMs, display }
 }
 
+function profileUrl(base, profile) {
+  const url = new URL(base)
+  if (profile.search) {
+    const extra = new URLSearchParams(profile.search)
+    extra.forEach((value, key) => url.searchParams.set(key, value))
+  }
+  return url.toString()
+}
+
+async function openStartMenu(page) {
+  await synthPointer(page, '.start-button', 'start menu')
+  await page.waitForFunction(
+    () => {
+      const menu = document.querySelector('.start-menu')
+      const r = menu?.getBoundingClientRect()
+      return Boolean(r && r.width > 40 && r.height > 40)
+    },
+    null,
+    { timeout: LIMIT_MS, polling: 16 }
+  )
+}
+
 async function triggerZoomOut(page, cycle, profile) {
-  const useMenu = profile.expectDisplay !== '3d' && cycle % 2 === 1
+  const useMenu =
+    profile.mixTriggers || profile.expectDisplay !== '3d' ? cycle % 2 === 1 : false
   if (useMenu) {
-    await synthPointer(page, '.start-button', 'start menu')
-    await page.waitForSelector('.start-menu', { timeout: LIMIT_MS })
+    await openStartMenu(page)
     await synthPointer(page, '__menu-zoom__', 'Shut down / Zoom out')
     return 'menu'
   }
@@ -168,15 +247,91 @@ async function runCycles(page, profile) {
   const cycles = []
   for (let i = 1; i <= CYCLES; i += 1) {
     const via = await triggerZoomOut(page, i, profile)
+    if (profile.mixTriggers && i % 4 === 0) {
+      await synthPointer(page, '.zoom-out-btn', 'double-tap zoom out')
+    }
     const outMs = await waitStage(page, 'parked')
     if (outMs >= LIMIT_MS) throw new Error(`FAIL SLOW ${profile.name} #${i} ${via} out=${outMs}ms`)
     await synthPointer(page, '__parked__', 'parked zoom in')
+    if (profile.mixTriggers && i % 4 === 0) {
+      await synthPointer(page, '__parked__', 'double-tap PRESS ANY KEY')
+    }
     const inMs = await waitStage(page, 'os')
     if (inMs >= LIMIT_MS) throw new Error(`FAIL SLOW ${profile.name} #${i} ${via} in=${inMs}ms`)
+    if (profile.hold3d) {
+      const info = await page.evaluate(() => ({
+        display: window.__crtDebug?.display,
+        judge: window.__crtFpsJudge || null,
+      }))
+      if (info.display !== '3d') {
+        throw new Error(`FAIL ${profile.name} #${i} dropped to display=${info.display} judge=${JSON.stringify(info.judge)}`)
+      }
+    }
     cycles.push({ cycle: i, via, outMs, inMs })
     log(`  ${profile.name} #${i} ${via} out=${outMs}ms in=${inMs}ms`)
   }
+  if (profile.assertFirstOut && cycles.length > 1) {
+    const first = cycles[0].outMs
+    const laterMax = Math.max(...cycles.slice(1).map((c) => c.outMs))
+    if (first >= LIMIT_MS) {
+      throw new Error(`FAIL ${profile.name} first zoom-out ${first}ms >= ${LIMIT_MS}ms`)
+    }
+    if (first > laterMax + 400) {
+      throw new Error(`FAIL ${profile.name} first zoom-out ${first}ms vs later max ${laterMax}ms`)
+    }
+    log(`  ${profile.name} first-out ${first}ms later-max ${laterMax}ms`)
+  }
   return cycles
+}
+
+async function runPhone3dExtras(page, profile) {
+  await synthPointer(page, '.zoom-out-btn', 'extras to parked')
+  await waitStage(page, 'parked')
+  await synthPointer(page, '__parked__', 'start zoom in for mid-zoom reverse')
+  await page.waitForFunction(
+    () => window.__crtDebug?.running === true && window.__crtDebug?.target === 'os',
+    null,
+    { timeout: LIMIT_MS, polling: 16 }
+  )
+  await page.keyboard.press('Escape')
+  const reverseOut = await waitStage(page, 'parked')
+  if (reverseOut >= LIMIT_MS) throw new Error(`FAIL SLOW ${profile.name} mid-zoom reverse ${reverseOut}ms`)
+  log(`  ${profile.name} extra mid-zoom reverse ${reverseOut}ms`)
+
+  await synthPointer(page, '__parked__', 'return os before hide')
+  await waitStage(page, 'os')
+  await synthPointer(page, '.zoom-out-btn', 'zoom out then background')
+  await page.waitForFunction(
+    () => window.__crtDebug?.running === true,
+    null,
+    { timeout: LIMIT_MS, polling: 16 }
+  )
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'hidden',
+    })
+    document.dispatchEvent(new Event('visibilitychange'))
+  })
+  const hideMs = await waitStage(page, 'parked')
+  if (hideMs >= LIMIT_MS) throw new Error(`FAIL SLOW ${profile.name} background snap ${hideMs}ms`)
+  log(`  ${profile.name} extra background snap ${hideMs}ms`)
+
+  const draws = await page.evaluate(() => window.__crtDebug?.draws || window.__crtDraws || 0)
+  if (draws > 120) throw new Error(`FAIL ${profile.name} draw calls ${draws} > 120`)
+  log(`  ${profile.name} draws=${draws}`)
+
+  await page.evaluate(() => {
+    const canvas = document.querySelector('canvas')
+    const gl = canvas?.getContext('webgl2') || canvas?.getContext('webgl')
+    gl?.getExtension('WEBGL_lose_context')?.loseContext()
+  })
+  await page.waitForFunction(
+    () => window.__crtDebug?.display === 'flat',
+    null,
+    { timeout: 4000, polling: 16 }
+  )
+  log(`  ${profile.name} extra context-loss → flat`)
 }
 
 async function runReverse(page, profile) {
@@ -221,6 +376,207 @@ async function runReverse(page, profile) {
   return cycles
 }
 
+async function loseWebGL(page) {
+  return page.evaluate(() => {
+    let n = 0
+    for (const canvas of document.querySelectorAll('canvas')) {
+      const gl = canvas.getContext('webgl2') || canvas.getContext('webgl')
+      const ext = gl?.__loseExt || gl?.getExtension?.('WEBGL_lose_context')
+      try {
+        ext?.loseContext()
+        n += 1
+      } catch {
+        /* ignore */
+      }
+      canvas.dispatchEvent(new Event('webglcontextlost', { bubbles: true, cancelable: true }))
+    }
+    if (!n) window.dispatchEvent(new Event('webglcontextlost'))
+    return n
+  })
+}
+
+function nearBox(a, b, tol = 2) {
+  if (!a || !b) return false
+  return (
+    Math.abs(a.left - b.left) <= tol &&
+    Math.abs(a.top - b.top) <= tol &&
+    Math.abs(a.width - b.width) <= tol &&
+    Math.abs(a.height - b.height) <= tol
+  )
+}
+
+async function measureLayout(page) {
+  return page.evaluate(() => {
+    const bezel = document.querySelector('.flat-os-bezel')
+    const os = document.querySelector('.os-root')
+    const boot = document.querySelector('.boot-screen')
+    const hidden = Boolean(os?.hasAttribute('hidden') || os?.closest('[hidden]'))
+    const box = (el) => {
+      if (!el) return null
+      const r = el.getBoundingClientRect()
+      return { left: r.left, top: r.top, width: r.width, height: r.height }
+    }
+    return {
+      bezel: box(bezel),
+      os: hidden ? null : box(os),
+      boot: box(boot),
+    }
+  })
+}
+
+async function captureFlatReference(browser, base) {
+  const { context, page } = await openLossPage(browser, base, true, 'flat=1')
+  await page.waitForSelector('.flat-os-bezel .os-root, .os-root', { timeout: 20000 })
+  await waitStage(page, 'os', 20000)
+  const ref = await measureLayout(page)
+  await context.close()
+  if (!ref.bezel || !ref.os) throw new Error('FAIL could not capture flat OS reference')
+  return ref
+}
+
+async function assertFlatVisible(page, label, pageErrors) {
+  await page.waitForFunction(
+    () => {
+      const d = window.__crtDebug
+      const main = document.querySelector('#os-main')
+      const content =
+        document.querySelector('.os-root') ||
+        document.querySelector('.boot-screen') ||
+        document.querySelector('.flat-os-bezel') ||
+        document.querySelector('.flat-crt') ||
+        document.querySelector('.flat-room')
+      const r = content?.getBoundingClientRect()
+      const mainR = main?.getBoundingClientRect()
+      const text = (document.body.innerText || '').replace(/\s+/g, ' ').trim()
+      return Boolean(
+        d &&
+          d.display === 'flat' &&
+          main?.getAttribute('data-display') === 'flat' &&
+          mainR &&
+          mainR.height > 200 &&
+          text.length > 8 &&
+          (r ? r.width * r.height > 0 || text.length > 8 : true)
+      )
+    },
+    null,
+    { timeout: 5000, polling: 16 }
+  )
+  const dirty = pageErrors.filter((msg) => !/AbortError|The user aborted a request/i.test(msg))
+  if (dirty.length) {
+    throw new Error(`FAIL ${label} pageerror ${dirty.join(' | ')}`)
+  }
+}
+
+async function assertFlatLayout(page, ref, label, pageErrors) {
+  await assertFlatVisible(page, label, pageErrors)
+  const got = await measureLayout(page)
+  if (!nearBox(got.bezel, ref.bezel)) {
+    throw new Error(`FAIL ${label} bezel ${JSON.stringify(got.bezel)} != ${JSON.stringify(ref.bezel)}`)
+  }
+  if (got.os && !nearBox(got.os, ref.os)) {
+    throw new Error(`FAIL ${label} os ${JSON.stringify(got.os)} != ${JSON.stringify(ref.os)}`)
+  }
+}
+
+async function openLossPage(browser, base, skipIntro, search = 'force3d=1') {
+  const context = await browser.newContext({
+    viewport: { width: 412, height: 915 },
+    deviceScaleFactor: 3,
+    isMobile: true,
+    hasTouch: true,
+    userAgent: PHONE_UA,
+    reducedMotion: 'no-preference',
+  })
+  const page = await context.newPage()
+  const pageErrors = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  const cdp = await context.newCDPSession(page)
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 })
+  await page.addInitScript((skip) => {
+    try {
+      if (skip) localStorage.setItem('harsh-os-skip-intro', '1')
+      else localStorage.removeItem('harsh-os-skip-intro')
+      localStorage.setItem('harsh-os-muted', '1')
+    } catch {
+      /* ignore */
+    }
+  }, skipIntro)
+  const url = new URL(base)
+  const extra = new URLSearchParams(search)
+  extra.forEach((value, key) => url.searchParams.set(key, value))
+  await page.goto(url.toString(), { waitUntil: 'domcontentloaded', timeout: 30000 })
+  return { context, page, pageErrors }
+}
+
+async function runContextLossSuite(browser, base) {
+  const cases = []
+  const ref = await captureFlatReference(browser, base)
+  log(`  phone-3d-loss ref bezel=${JSON.stringify(ref.bezel)} os=${JSON.stringify(ref.os)}`)
+
+  {
+    const { context, page, pageErrors } = await openLossPage(browser, base, true)
+    await waitStage(page, 'os', 20000)
+    await page.waitForFunction(() => Boolean(document.querySelector('canvas')), null, {
+      timeout: 15000,
+      polling: 16,
+    })
+    await loseWebGL(page)
+    const t0 = Date.now()
+    for (const delay of [0, 120, 350, 900, 2200]) {
+      const wait = delay - (Date.now() - t0)
+      if (wait > 0) await page.waitForTimeout(wait)
+      await assertFlatLayout(page, ref, `loss-rest+${delay}`, pageErrors)
+      log(`  phone-3d-loss rest+${delay}ms → full flat`)
+    }
+    await context.close()
+    cases.push({ name: 'rest', outMs: 0, inMs: 0 })
+  }
+
+  {
+    const { context, page, pageErrors } = await openLossPage(browser, base, false)
+    await page.waitForFunction(
+      () => window.__crtDebug?.stage === 'boot' && document.querySelector('canvas'),
+      null,
+      { timeout: 15000, polling: 16 }
+    )
+    await page.waitForTimeout(80)
+    await loseWebGL(page)
+    await assertFlatLayout(page, ref, 'loss-boot', pageErrors)
+    log('  phone-3d-loss boot → full flat')
+    await context.close()
+    cases.push({ name: 'boot', outMs: 0, inMs: 0 })
+  }
+
+  {
+    const { context, page, pageErrors } = await openLossPage(browser, base, true)
+    await waitStage(page, 'os', 20000)
+    await synthPointer(page, '.zoom-out-btn', 'loss parked zoom out')
+    await waitStage(page, 'parked')
+    await loseWebGL(page)
+    await assertFlatLayout(page, ref, 'loss-parked', pageErrors)
+    log('  phone-3d-loss parked → full flat')
+    await context.close()
+    cases.push({ name: 'parked', outMs: 0, inMs: 0 })
+  }
+
+  {
+    const { context, page, pageErrors } = await openLossPage(browser, base, true)
+    await waitStage(page, 'os', 20000)
+    await synthPointer(page, '.zoom-out-btn', 'loss dolly zoom out')
+    await page.waitForFunction(() => window.__crtDebug?.running === true, null, {
+      timeout: LIMIT_MS,
+      polling: 16,
+    })
+    await loseWebGL(page)
+    await assertFlatLayout(page, ref, 'loss-dolly', pageErrors)
+    log('  phone-3d-loss mid-dolly → full flat')
+    await context.close()
+    cases.push({ name: 'dolly', outMs: 0, inMs: 0 })
+  }
+
+  return { name: 'phone-3d-loss', display: 'flat', bootMs: 0, cycles: cases, reverse: false, pageErrors: [] }
+}
+
 async function runProfile(browser, base, profile) {
   const context = await browser.newContext({
     viewport: profile.viewport,
@@ -234,7 +590,7 @@ async function runProfile(browser, base, profile) {
   const pageErrors = []
   page.on('pageerror', (error) => pageErrors.push(error.message))
   const cdp = await context.newCDPSession(page)
-  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 })
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: profile.cpu || 4 })
   await page.addInitScript(() => {
     try {
       localStorage.setItem('harsh-os-skip-intro', '1')
@@ -244,10 +600,12 @@ async function runProfile(browser, base, profile) {
     }
   })
 
-  await page.goto(new URL(base).toString(), { waitUntil: 'domcontentloaded', timeout: 30000 })
+  await page.goto(profileUrl(base, profile), { waitUntil: 'domcontentloaded', timeout: 30000 })
   const { bootMs, display } = await waitReady(page, profile)
   const cycles = profile.reverse ? await runReverse(page, profile) : await runCycles(page, profile)
-  if (profile.expectDisplay === '3d' && !profile.reverse) {
+  if (profile.extras) {
+    await runPhone3dExtras(page, profile)
+  } else if (profile.expectDisplay === '3d' && !profile.reverse) {
     await synthPointer(page, '.zoom-out-btn', 'park for context-loss')
     await waitStage(page, 'parked')
     await page.evaluate(() => {
@@ -260,6 +618,10 @@ async function runProfile(browser, base, profile) {
   const trimErrors = pageErrors.filter((msg) => /trim|ShadowAlpha|Cannot read properties of null/i.test(msg))
   if (trimErrors.length) {
     throw new Error(`FAIL pageerror ${trimErrors.join(' | ')}`)
+  }
+  const dirty = pageErrors.filter((msg) => !/AbortError|The user aborted a request/i.test(msg))
+  if (profile.extras && dirty.length) {
+    throw new Error(`FAIL console ${dirty.join(' | ')}`)
   }
   await context.close()
   return { name: profile.name, display, bootMs, cycles, reverse: profile.reverse, pageErrors }
@@ -293,7 +655,7 @@ async function main() {
   try {
     for (const profile of PROFILES) {
       log(
-        `\n== ${profile.name} ${profile.viewport.width}x${profile.viewport.height} dpr=${profile.deviceScaleFactor} cpu=4x${profile.reverse ? ' reverse' : ''} ==`
+        `\n== ${profile.name} ${profile.viewport.width}x${profile.viewport.height} dpr=${profile.deviceScaleFactor} cpu=${profile.cpu || 4}x${profile.reverse ? ' reverse' : ''} ==`
       )
       try {
         results.push(await runProfile(browser, base, profile))
@@ -301,6 +663,13 @@ async function main() {
         failures.push(`${profile.name}: ${error.message}`)
         log(`FAIL ${profile.name}: ${error.message}`)
       }
+    }
+    log(`\n== phone-3d-loss context-loss suite ==`)
+    try {
+      results.push(await runContextLossSuite(browser, base))
+    } catch (error) {
+      failures.push(`phone-3d-loss: ${error.message}`)
+      log(`FAIL phone-3d-loss: ${error.message}`)
     }
   } finally {
     await browser.close()
