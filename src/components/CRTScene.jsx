@@ -45,8 +45,8 @@ function startCamForAspect(aspect, look = START_CAM.look, glassSize, lite = fals
     const tanHalf = Math.tan((fov * Math.PI) / 360)
     const dist = tvW / (2 * tanHalf * safe * PHONE_TV_FILL)
     return {
-      pos: [look[0], look[1] + 0.14, look[2] + dist],
-      look: [look[0], look[1] - 0.12, look[2]],
+      pos: [look[0], look[1] + 0.26, look[2] + dist],
+      look: [look[0], look[1] - 0.2, look[2] + 0.04],
       fov,
     }
   }
@@ -730,7 +730,7 @@ function LiteDesk() {
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0.12]}>
         <planeGeometry args={[2.6, 1.7]} />
-        <meshBasicMaterial color="#2c1c12" />
+        <meshBasicMaterial color="#4a2e1c" />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.012, 0.18]}>
         <planeGeometry args={[8, 6]} />
