@@ -1,5 +1,5 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { useGLTF, useProgress } from '@react-three/drei'
+import { ContactShadows, useGLTF, useProgress } from '@react-three/drei'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { useBootTexture } from './ScreenBoot'
@@ -223,7 +223,7 @@ function GlassTracker({ screen, onRect }) {
   return <group ref={group} position={screen.position} />
 }
 
-function VintageCRT({ bootMap, onGlassRect, zoomRef, glassCenterRef, glassSizeRef }) {
+function VintageCRT({ bootMap, onGlassRect, zoomRef, glassCenterRef, glassSizeRef, onFootprint }) {
   const group = useRef()
   const { scene } = useGLTF(PHONE_GLB, false, true)
   const clone = useMemo(() => scene.clone(true), [scene])
@@ -269,11 +269,12 @@ function VintageCRT({ bootMap, onGlassRect, zoomRef, glassCenterRef, glassSizeRe
     const center = new THREE.Vector3()
     box.getSize(size)
     box.getCenter(center)
+    onFootprint?.([size.x * TV_SCALE, size.z * TV_SCALE])
     setScreen({
       position: [center.x, center.y + size.y * 0.145, box.max.z + 0.024],
       size: [size.x * 0.78, size.y * 0.55],
     })
-  }, [clone])
+  }, [clone, onFootprint])
 
   const glassGeo = useMemo(() => curveGeometry(screen.size[0], screen.size[1], 0.012), [screen.size])
   const tubeGeo = useMemo(
@@ -373,6 +374,7 @@ function StatsProbe() {
 function Scene({ zoomRef, bootRunning, reducedMotion, onBootReady, onGlassRect, onWarmed, fpsActive, onFrame }) {
   const glassCenterRef = useRef(GLASS_LOOK)
   const glassSizeRef = useRef(glassWorldSize())
+  const [tvFoot, setTvFoot] = useState(null)
   const bootMap = useBootTexture({
     running: bootRunning,
     reduced: reducedMotion,
@@ -396,16 +398,24 @@ function Scene({ zoomRef, bootRunning, reducedMotion, onBootReady, onGlassRect, 
         <planeGeometry args={[2.6, 1.7]} />
         <meshBasicMaterial color="#5a3820" />
       </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0.14]}>
-        <circleGeometry args={[0.42, 20]} />
-        <meshBasicMaterial color="#000000" transparent opacity={0.6} />
-      </mesh>
+      {tvFoot && (
+        <ContactShadows
+          key={`${tvFoot[0].toFixed(3)}x${tvFoot[1].toFixed(3)}`}
+          frames={1}
+          position={[0, 0.001, 0.14]}
+          opacity={0.45}
+          scale={[tvFoot[0] * 1.1, tvFoot[1] * 1.1]}
+          blur={2.75}
+          far={0.3}
+        />
+      )}
       <VintageCRT
         bootMap={bootMap}
         onGlassRect={onGlassRect}
         zoomRef={zoomRef}
         glassCenterRef={glassCenterRef}
         glassSizeRef={glassSizeRef}
+        onFootprint={setTvFoot}
       />
       <CameraRig zoomRef={zoomRef} glassCenterRef={glassCenterRef} glassSizeRef={glassSizeRef} />
       <ShaderWarmup
