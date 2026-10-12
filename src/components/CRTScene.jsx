@@ -118,7 +118,19 @@ function curveGeometry(width, height, bend = 0.028) {
   return geo
 }
 
-const WARMUP_ZOOMS = [0, 0.2, 0.45, 0.7, 1, 0.35, 0]
+const WARMUP_ZOOMS = [0, 0.35, 0.7, 1]
+
+function poseCamera(camera, t, aspect, glassCenter, glassSize, lite) {
+  const lookEnd = glassCenter || GLASS_LOOK
+  const start = startCamForAspect(aspect, lookEnd, glassSize, lite)
+  const end = endCamForAspect(aspect, lookEnd, glassSize, lite)
+  const pos = lerp3(start.pos, end.pos, t)
+  const look = lerp3(start.look, end.look, t)
+  camera.position.set(pos[0], pos[1], pos[2])
+  camera.fov = lerp(start.fov, end.fov, t)
+  camera.lookAt(look[0], look[1], look[2])
+  camera.updateProjectionMatrix()
+}
 
 function ShaderWarmup({ zoomRef, glassCenterRef, glassSizeRef, bootMap, lite, onWarmed }) {
   const { gl, scene, camera, size } = useThree()
@@ -126,7 +138,6 @@ function ShaderWarmup({ zoomRef, glassCenterRef, glassSizeRef, bootMap, lite, on
   const warmed = useRef(false)
   const born = useRef(performance.now())
   const phase = useRef(0)
-  const saved = useRef(0)
 
   useFrame(() => {
     if (warmed.current) return
@@ -136,7 +147,6 @@ function ShaderWarmup({ zoomRef, glassCenterRef, glassSizeRef, bootMap, lite, on
     if (!glassSizeRef?.current?.[0] && waited < 8000) return
     const aspect = size.width / Math.max(1, size.height)
     if (phase.current === 0) {
-      saved.current = zoomRef.current
       try {
         if (bootMap && typeof gl.initTexture === 'function') gl.initTexture(bootMap)
         scene.traverse((obj) => {
@@ -158,18 +168,8 @@ function ShaderWarmup({ zoomRef, glassCenterRef, glassSizeRef, bootMap, lite, on
       }
     }
     if (phase.current < WARMUP_ZOOMS.length) {
-      const t = WARMUP_ZOOMS[phase.current]
-      zoomRef.current = t
       try {
-        const lookEnd = glassCenterRef?.current || GLASS_LOOK
-        const start = startCamForAspect(aspect, lookEnd, glassSizeRef.current, lite)
-        const end = endCamForAspect(aspect, lookEnd, glassSizeRef.current, lite)
-        const pos = lerp3(start.pos, end.pos, t)
-        const look = lerp3(start.look, end.look, t)
-        camera.position.set(pos[0], pos[1], pos[2])
-        camera.fov = lerp(start.fov, end.fov, t)
-        camera.lookAt(look[0], look[1], look[2])
-        camera.updateProjectionMatrix()
+        poseCamera(camera, WARMUP_ZOOMS[phase.current], aspect, glassCenterRef?.current, glassSizeRef.current, lite)
         gl.compile(scene, camera)
         gl.render(scene, camera)
       } catch {
@@ -179,10 +179,20 @@ function ShaderWarmup({ zoomRef, glassCenterRef, glassSizeRef, bootMap, lite, on
       return
     }
     if (phase.current < WARMUP_ZOOMS.length + 2) {
+      try {
+        poseCamera(camera, 0, aspect, glassCenterRef?.current, glassSizeRef.current, lite)
+        gl.render(scene, camera)
+      } catch {
+        /* ignore */
+      }
       phase.current += 1
       return
     }
-    zoomRef.current = saved.current
+    try {
+      poseCamera(camera, zoomRef.current ?? 1, aspect, glassCenterRef?.current, glassSizeRef.current, lite)
+    } catch {
+      /* ignore */
+    }
     warmed.current = true
     window.__crtWarmed = true
     onWarmed?.()

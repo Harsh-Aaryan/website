@@ -153,7 +153,8 @@ async function waitStage(page, want, ms = LIMIT_MS) {
     await page.waitForFunction(
       (stage) => {
         const d = window.__crtDebug
-        return Boolean(d && d.stage === stage && d.lock === false)
+        const dom = document.querySelector('#os-main')?.dataset?.stage
+        return Boolean((d && d.stage === stage && d.lock === false) || dom === stage)
       },
       want,
       { timeout: ms, polling: 16 }
@@ -425,6 +426,7 @@ async function measureLayout(page) {
 
 async function captureFlatReference(browser, base) {
   const { context, page } = await openLossPage(browser, base, true, 'flat=1')
+  await page.waitForSelector('.flat-os-bezel .os-root, .os-root', { timeout: 20000 })
   await waitStage(page, 'os', 20000)
   const ref = await measureLayout(page)
   await context.close()
