@@ -334,7 +334,8 @@ function VintageCRT({ bootMap, onGlassRect, zoomRef, glassCenterRef, glassSizeRe
       mats.forEach((mat) => {
         if (lite) {
           mat.envMapIntensity = 0
-          mat.roughness = Math.min((mat.roughness ?? 0.5) + 0.12, 0.82)
+          mat.roughness = Math.min((mat.roughness ?? 0.5) + 0.08, 0.78)
+          if (mat.color) mat.color.multiply(new THREE.Color(1.22, 1.1, 0.92))
           return
         }
         mat.envMapIntensity = 0.7
@@ -796,9 +797,10 @@ function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady, on
     return (
       <>
         <color attach="background" args={['#07090c']} />
-        <hemisphereLight args={['#3a4450', '#120c08', 0.62]} />
-        <ambientLight intensity={0.28} color="#6a5a48" />
-        <directionalLight position={[0.35, 1.35, 0.85]} intensity={0.7} color="#e8c48a" />
+        <hemisphereLight args={['#5a6570', '#1a100c', 0.9]} />
+        <ambientLight intensity={0.42} color="#8a7a64" />
+        <directionalLight position={[0.15, 1.05, 1.55]} intensity={1.15} color="#f3d7a8" />
+        <directionalLight position={[-0.8, 0.7, 0.4]} intensity={0.28} color="#7f93a3" />
         <LiteDesk />
         <VintageCRT
           lite
