@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { TIMING } from '../config'
 import { BOOT_LINES } from '../content'
 
-function paintBoot(canvas, count) {
+function paintBoot(canvas, count, scale = 1) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
   ctx.fillStyle = '#0E0A05'
@@ -15,11 +15,12 @@ function paintBoot(canvas, count) {
   ctx.shadowColor = 'transparent'
   ctx.shadowBlur = 0
   ctx.fillStyle = '#FFFFFF'
-  ctx.font = '28px VT323, "IBM Plex Mono", ui-monospace, monospace'
+  const fontPx = Math.round(28 * scale)
+  ctx.font = `${fontPx}px VT323, "IBM Plex Mono", ui-monospace, monospace`
   ctx.textBaseline = 'top'
-  const padX = Math.round(canvas.width * 0.12)
-  const lineH = 32
-  const blockH = BOOT_LINES.length * lineH + 22
+  const padX = Math.round(canvas.width * (scale > 1 ? 0.08 : 0.12))
+  const lineH = Math.round(32 * scale)
+  const blockH = BOOT_LINES.length * lineH + Math.round(22 * scale)
   const padY = Math.round((canvas.height - blockH) / 2)
   let y = padY
   BOOT_LINES.slice(0, count).forEach((line) => {
@@ -27,7 +28,7 @@ function paintBoot(canvas, count) {
     y += lineH
   })
   if (count >= BOOT_LINES.length) {
-    ctx.fillRect(padX, y + 8, 14, 24)
+    ctx.fillRect(padX, y + Math.round(8 * scale), Math.round(14 * scale), Math.round(24 * scale))
   }
   const edge = ctx.createRadialGradient(512, 384, 340, 512, 384, 640)
   edge.addColorStop(0, 'rgba(14, 10, 5, 0)')
@@ -38,26 +39,26 @@ function paintBoot(canvas, count) {
 }
 
 /** Amber BIOS text painted onto a CanvasTexture for the CRT glass. */
-export function useBootTexture({ running, reduced, onReady }) {
+export function useBootTexture({ running, reduced, onReady, scale = 1 }) {
   const canvas = useMemo(() => {
     const el = document.createElement('canvas')
     el.width = 1024
     el.height = 768
-    paintBoot(el, BOOT_LINES.length)
+    paintBoot(el, BOOT_LINES.length, scale)
     return el
-  }, [])
+  }, [scale])
 
   const texture = useMemo(() => {
     const tex = new THREE.CanvasTexture(canvas)
     tex.colorSpace = THREE.SRGBColorSpace
     tex.anisotropy = 8
     tex.generateMipmaps = false
-    tex.minFilter = THREE.NearestFilter
-    tex.magFilter = THREE.NearestFilter
+    tex.minFilter = scale > 1 ? THREE.LinearFilter : THREE.NearestFilter
+    tex.magFilter = scale > 1 ? THREE.LinearFilter : THREE.NearestFilter
     tex.flipY = true
     tex.needsUpdate = true
     return tex
-  }, [canvas])
+  }, [canvas, scale])
 
   const onReadyRef = useRef(onReady)
   onReadyRef.current = onReady
@@ -78,7 +79,7 @@ export function useBootTexture({ running, reduced, onReady }) {
 
     const draw = (count) => {
       if (cancelled) return
-      paintBoot(canvas, count)
+      paintBoot(canvas, count, scale)
       texture.needsUpdate = true
       if (count >= BOOT_LINES.length) finish()
     }
@@ -104,7 +105,7 @@ export function useBootTexture({ running, reduced, onReady }) {
       window.clearInterval(intervalId)
       window.clearTimeout(holdId)
     }
-  }, [canvas, reduced, running, texture])
+  }, [canvas, reduced, running, scale, texture])
 
   return texture
 }

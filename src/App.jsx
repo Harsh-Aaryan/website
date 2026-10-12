@@ -58,21 +58,64 @@ function glassBox(rect) {
   return visibleGlassRect(rect)
 }
 
-function applyOverlayRect(el, rect, zoom) {
-  if (!el || !rect) return
-  const box = glassBox(rect)
-  const wipe = smoothstep((zoom - 0.9) / 0.1)
+function lerpNum(a, b, t) {
+  return a + (b - a) * t
+}
+
+function fullBezelBox() {
+  const inset = window.innerWidth <= 768 ? 10 : 0
+  return {
+    left: inset,
+    top: inset,
+    width: Math.max(1, window.innerWidth - inset * 2),
+    height: Math.max(1, window.innerHeight - inset * 2),
+  }
+}
+
+function applyFullBezel(el) {
+  el.style.left = ''
+  el.style.top = ''
+  el.style.width = ''
+  el.style.height = ''
+  el.style.clipPath = 'none'
+  el.style.opacity = '1'
+  el.style.borderRadius = ''
+  el.classList.remove('is-wiping', 'is-expanding')
+  el.classList.add('is-full')
+}
+
+function applyOverlayRect(el, rect, zoom, expand = false) {
+  if (!el) return
+  if (expand && (zoom >= 0.995 || !rect)) {
+    applyFullBezel(el)
+    return
+  }
+  if (!rect) return
+  const glass = glassBox(rect)
+  const expandT = expand ? smoothstep((zoom - 0.84) / 0.16) : 0
+  const box =
+    expandT > 0
+      ? {
+          left: lerpNum(glass.left, fullBezelBox().left, expandT),
+          top: lerpNum(glass.top, fullBezelBox().top, expandT),
+          width: lerpNum(glass.width, fullBezelBox().width, expandT),
+          height: lerpNum(glass.height, fullBezelBox().height, expandT),
+        }
+      : glass
+  const wipe = expand ? Math.max(expandT, smoothstep((zoom - 0.84) / 0.08)) : smoothstep((zoom - 0.9) / 0.1)
   el.style.left = `${box.left}px`
   el.style.top = `${box.top}px`
   el.style.width = `${box.width}px`
   el.style.height = `${box.height}px`
-  const rad = Math.max(6, Math.min(box.width, box.height) * 0.026)
+  const rad = Math.max(6, Math.min(box.width, box.height) * (expandT > 0.4 ? 0.02 : 0.026))
   el.style.borderRadius = `${rad.toFixed(1)}px`
   const hidden = (1 - wipe) * 100
-  el.style.clipPath = wipe >= 0.995 ? 'none' : `inset(0 0 ${hidden.toFixed(2)}% 0)`
-  el.style.opacity = wipe > 0.02 ? '1' : '0'
-  el.classList.toggle('is-framed', true)
-  el.classList.toggle('is-wiping', wipe > 0.02 && wipe < 0.995)
+  el.style.clipPath = wipe >= 0.995 || expandT > 0.02 ? 'none' : `inset(0 0 ${hidden.toFixed(2)}% 0)`
+  el.style.opacity = wipe > 0.02 || expandT > 0 ? '1' : '0'
+  el.classList.toggle('is-framed', expandT < 0.995)
+  el.classList.toggle('is-wiping', wipe > 0.02 && wipe < 0.995 && expandT < 0.2)
+  el.classList.toggle('is-expanding', expand && expandT > 0.2 && expandT < 0.995)
+  el.classList.toggle('is-full', expand && expandT >= 0.995)
 }
 
 function zoomDuration(dir, fromStage, use3d, reduced) {
@@ -90,6 +133,8 @@ export default function App() {
   const [use3d, setUse3d] = useState(() => shouldUse3D())
   const lite = use3d && isPhoneLike()
   const force3d = new URLSearchParams(window.location.search).get('force3d') === '1'
+  const liteRef = useRef(lite)
+  liteRef.current = lite
 
   const [stage, setStage] = useState(() => {
     if (skipStored) return 'os'
@@ -189,6 +234,8 @@ export default function App() {
       display: use3dRef.current ? '3d' : 'flat',
       running: Boolean(motion.running),
       lite: Boolean(use3dRef.current && isPhoneLike()),
+      osFrame:
+        use3dRef.current && isPhoneLike() && stageRef.current === 'os' ? 'bezel' : use3dRef.current ? 'glass' : 'flat',
       draws: window.__crtDraws ?? 0,
       fps: window.__crtFps ?? null,
     }
@@ -255,13 +302,14 @@ export default function App() {
       }
       return
     }
-    if (motion.dir === 'os' && zoomRef.current >= 0.9 && !overlayOnRef.current) {
+    const appearAt = liteRef.current ? 0.84 : 0.9
+    if (motion.dir === 'os' && zoomRef.current >= appearAt && !overlayOnRef.current) {
       overlayOnRef.current = true
       setOsMounted(true)
       setOverlayOn(true)
     }
-    if (motion.dir === 'parked' && zoomRef.current < 0.9) overlayOnRef.current = true
-    applyOverlayRect(el, glassRectRef.current, zoomRef.current)
+    if (motion.dir === 'parked' && zoomRef.current < appearAt) overlayOnRef.current = true
+    applyOverlayRect(el, glassRectRef.current, zoomRef.current, liteRef.current)
   }
 
   const finishMotion = useCallback(
@@ -289,6 +337,7 @@ export default function App() {
       overlayOnRef.current = true
       persistSkip()
       if (el && !use3dRef.current) el.style.opacity = '1'
+      if (el && liteRef.current) applyFullBezel(el)
       pendingLand.current = true
       goStage('os')
       publishDebug()
@@ -550,7 +599,7 @@ export default function App() {
 
   useEffect(() => {
     if (!overlayOn && stage !== 'os') return
-    applyOverlayRect(overlayRef.current, glassRectRef.current, zoomRef.current)
+    applyOverlayRect(overlayRef.current, glassRectRef.current, zoomRef.current, liteRef.current)
   }, [overlayOn, stage])
 
   useEffect(() => {
@@ -600,6 +649,7 @@ export default function App() {
     setOsMounted(true)
     pendingLand.current = true
     goStage('os')
+    if (liteRef.current && overlayRef.current) applyFullBezel(overlayRef.current)
     landOnOs()
     publishDebug()
   }
@@ -689,7 +739,7 @@ export default function App() {
                 glassRectRef.current = rect
                 window.__glassMetrics = rect
                 if (overlayVisible || overlayOnRef.current) {
-                  applyOverlayRect(overlayRef.current, rect, zoomRef.current)
+                  applyOverlayRect(overlayRef.current, rect, zoomRef.current, liteRef.current)
                 }
               }}
             />
@@ -714,7 +764,7 @@ export default function App() {
       {osMounted && (
         <div
           ref={overlayRef}
-          className={use3d ? 'screen-overlay is-framed' : 'flat-os-bezel'}
+          className={lite && stage === 'os' ? 'flat-os-bezel' : use3d ? 'screen-overlay is-framed' : 'flat-os-bezel'}
           hidden={use3d ? !overlayVisible : !(overlayVisible || stage === 'parked')}
         >
           <div hidden={!use3d && stage === 'parked'} style={{ height: '100%' }}>

@@ -156,8 +156,18 @@ async function waitReady(page, profile) {
       { timeout: 20000, polling: 50 }
     )
     if (profile.extras) {
-      const lite = await page.evaluate(() => window.__crtDebug?.lite)
-      if (!lite) throw new Error(`FAIL ${profile.name} expected lite 3D`)
+      const info = await page.evaluate(() => {
+        const os = document.querySelector('.flat-os-bezel .os-root') || document.querySelector('.os-root')
+        const r = os?.getBoundingClientRect()
+        return {
+          lite: window.__crtDebug?.lite,
+          osFrame: window.__crtDebug?.osFrame,
+          height: r?.height || 0,
+        }
+      })
+      if (!info.lite) throw new Error(`FAIL ${profile.name} expected lite 3D`)
+      if (info.osFrame !== 'bezel') throw new Error(`FAIL ${profile.name} osFrame=${info.osFrame}`)
+      if (info.height < 600) throw new Error(`FAIL ${profile.name} OS height ${info.height} < 600`)
     }
   }
   return { bootMs, display }

@@ -45,8 +45,8 @@ function startCamForAspect(aspect, look = START_CAM.look, glassSize, lite = fals
     const tanHalf = Math.tan((fov * Math.PI) / 360)
     const dist = tvW / (2 * tanHalf * safe * PHONE_TV_FILL)
     return {
-      pos: [look[0], look[1] + 0.03, look[2] + dist],
-      look,
+      pos: [look[0], look[1] + 0.14, look[2] + dist],
+      look: [look[0], look[1] - 0.12, look[2]],
       fov,
     }
   }
@@ -672,7 +672,7 @@ function canvasDpr() {
   }
 }
 
-function OnceContactShadows() {
+function OnceContactShadows({ opacity = 0.6 }) {
   const { gl } = useThree()
   const group = useRef(null)
 
@@ -716,7 +716,7 @@ function OnceContactShadows() {
       <ContactShadows
         frames={1}
         position={[0, 0.001, 0.16]}
-        opacity={0.6}
+        opacity={opacity}
         scale={1.6}
         blur={2.4}
         far={0.4}
@@ -730,7 +730,7 @@ function LiteDesk() {
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0.12]}>
         <planeGeometry args={[2.6, 1.7]} />
-        <meshBasicMaterial color="#1c120c" />
+        <meshBasicMaterial color="#2c1c12" />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.012, 0.18]}>
         <planeGeometry args={[8, 6]} />
@@ -786,6 +786,7 @@ function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady, on
     running: bootRunning,
     reduced: reducedMotion,
     onReady: onBootReady,
+    scale: lite && (typeof window === 'undefined' || window.innerHeight >= window.innerWidth) ? 1.4 : 1,
   })
   const { scene } = useThree()
 
@@ -797,10 +798,10 @@ function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady, on
     return (
       <>
         <color attach="background" args={['#07090c']} />
-        <hemisphereLight args={['#5a6570', '#1a100c', 0.9]} />
-        <ambientLight intensity={0.42} color="#8a7a64" />
-        <directionalLight position={[0.15, 1.05, 1.55]} intensity={1.15} color="#f3d7a8" />
-        <directionalLight position={[-0.8, 0.7, 0.4]} intensity={0.28} color="#7f93a3" />
+        <hemisphereLight args={['#6a7580', '#1a100c', 1.17]} />
+        <ambientLight intensity={0.55} color="#8a7a64" />
+        <directionalLight position={[0.15, 1.05, 1.55]} intensity={1.5} color="#f3d7a8" />
+        <directionalLight position={[-0.8, 0.7, 0.4]} intensity={0.36} color="#7f93a3" />
         <LiteDesk />
         <VintageCRT
           lite
@@ -810,7 +811,7 @@ function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady, on
           glassCenterRef={glassCenterRef}
           glassSizeRef={glassSizeRef}
         />
-        {!suspended && <OnceContactShadows />}
+        {!suspended && <OnceContactShadows opacity={0.88} />}
         <CameraRig lite zoomRef={zoomRef} glassCenterRef={glassCenterRef} glassSizeRef={glassSizeRef} />
         <ShaderWarmup
           lite
@@ -893,7 +894,7 @@ export default function CRTScene({
   busy = true,
   onSlow,
 }) {
-  const [dpr] = useState(() => (lite ? [1, 1] : canvasDpr()))
+  const [dpr] = useState(() => (lite ? [1, 1.5] : canvasDpr()))
   const [warmed, setWarmed] = useState(false)
   const idle = lite && !busy && warmed && !suspended
   return (
