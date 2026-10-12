@@ -1,5 +1,5 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { ContactShadows, useGLTF, useProgress } from '@react-three/drei'
+import { useGLTF, useProgress } from '@react-three/drei'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { bindContextLoss, createSafeRenderer } from '../glSafe'
@@ -390,6 +390,40 @@ function FpsGuard({ active, onFrame }) {
   return null
 }
 
+function makeSoftShadowMap() {
+  const size = 256
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = size
+  const ctx = canvas.getContext('2d')
+  const mid = size * 0.5
+  const gradient = ctx.createRadialGradient(mid, mid, 0, mid, mid, size * 0.38)
+  gradient.addColorStop(0, 'rgba(0,0,0,1)')
+  gradient.addColorStop(0.4, 'rgba(0,0,0,0.5)')
+  gradient.addColorStop(0.72, 'rgba(0,0,0,0.1)')
+  gradient.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.clearRect(0, 0, size, size)
+  ctx.fillStyle = gradient
+  ctx.fillRect(0, 0, size, size)
+  const tex = new THREE.CanvasTexture(canvas)
+  tex.colorSpace = THREE.SRGBColorSpace
+  tex.generateMipmaps = false
+  tex.minFilter = THREE.LinearFilter
+  tex.magFilter = THREE.LinearFilter
+  tex.needsUpdate = true
+  return tex
+}
+
+function SoftContactBlob({ size }) {
+  const map = useMemo(() => makeSoftShadowMap(), [])
+  useEffect(() => () => map.dispose(), [map])
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.003, 0.14]} renderOrder={0}>
+      <planeGeometry args={[size[0] * 1.1, size[1] * 1.1]} />
+      <meshBasicMaterial map={map} transparent opacity={0.45} depthWrite={false} toneMapped={false} />
+    </mesh>
+  )
+}
+
 function StatsProbe() {
   const { gl } = useThree()
   useFrame(() => {
@@ -425,17 +459,7 @@ function Scene({ zoomRef, bootRunning, reducedMotion, onBootReady, onGlassRect, 
         <planeGeometry args={[2.6, 1.7]} />
         <meshBasicMaterial color="#5a3820" />
       </mesh>
-      {tvFoot && (
-        <ContactShadows
-          key={`${tvFoot[0].toFixed(3)}x${tvFoot[1].toFixed(3)}`}
-          frames={1}
-          position={[0, 0.001, 0.14]}
-          opacity={0.45}
-          scale={[tvFoot[0] * 1.1, tvFoot[1] * 1.1]}
-          blur={2.75}
-          far={0.3}
-        />
-      )}
+      {tvFoot && <SoftContactBlob size={tvFoot} />}
       <VintageCRT
         bootMap={bootMap}
         onGlassRect={onGlassRect}

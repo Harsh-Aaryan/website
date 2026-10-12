@@ -924,7 +924,7 @@ export default function App() {
         </div>
       )}
 
-      {use3d && (stage === 'parked' || stage === 'zooming') && !overlayVisible && (
+      {use3d && stage === 'parked' && !overlayVisible && (
         <button
           type="button"
           className="scene-recover"
