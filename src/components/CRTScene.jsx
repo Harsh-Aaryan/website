@@ -25,14 +25,31 @@ const GLASS_PLANE = [0.312, 0.226]
 /** Target fill of the limiting axis. Ultrawide is height-capped. */
 const LANDSCAPE_FILL = 0.88
 const PORTRAIT_DIST = 0.95
+const PHONE_GLASS_FILL = 0.88
+const PHONE_TV_FILL = 0.87
+const PHONE_YAW = 0.06
+const DESKTOP_GLB = '/assets/scene/r2/television_02.glb'
+const PHONE_GLB = '/assets/scene/r2/television_02_1k.glb'
 
 function glassWorldSize(plane = GLASS_PLANE) {
   return [plane[0] * GLASS_OPEN * TV_SCALE, plane[1] * GLASS_OPEN * TV_SCALE]
 }
 
 /** PerspectiveCamera.fov is vertical — pull back and widen on tall frames. */
-function startCamForAspect(aspect) {
+function startCamForAspect(aspect, look = START_CAM.look, glassSize, lite = false) {
   const safe = Math.max(0.42, aspect)
+  if (lite && safe < 1) {
+    const [gw] = glassSize?.[0] ? glassSize : glassWorldSize()
+    const tvW = gw / (GLASS_OPEN * 0.78)
+    const fov = Math.min(46, START_CAM.fov * (1.35 / safe))
+    const tanHalf = Math.tan((fov * Math.PI) / 360)
+    const dist = tvW / (2 * tanHalf * safe * PHONE_TV_FILL)
+    return {
+      pos: [look[0], look[1] + 0.03, look[2] + dist],
+      look,
+      fov,
+    }
+  }
   if (safe >= 1) return START_CAM
   return {
     pos: [0.22, START_CAM.pos[1], START_CAM.pos[2] + (safe < 0.75 ? 0.55 : 0.28)],
@@ -42,10 +59,20 @@ function startCamForAspect(aspect) {
 }
 
 /** Square-on end cam aimed at the glass center. Height-limited on landscape. */
-function endCamForAspect(aspect, look, glassSize) {
+function endCamForAspect(aspect, look, glassSize, lite = false) {
   const safe = Math.max(0.42, aspect)
   const half = (END_FOV * Math.PI) / 360
   const fov = safe >= 1 ? END_FOV : Math.min(52, (2 * Math.atan(Math.tan(half) / safe) * 180) / Math.PI)
+  const [gw, gh] = glassSize?.[0] ? glassSize : glassWorldSize()
+  if (lite && safe < 1) {
+    const tanHalf = Math.tan((fov * Math.PI) / 360)
+    const dist = gw / (2 * tanHalf * safe * PHONE_GLASS_FILL)
+    return {
+      pos: [look[0], look[1], look[2] + dist],
+      look,
+      fov,
+    }
+  }
   if (safe < 1) {
     return {
       pos: [look[0], look[1], look[2] + PORTRAIT_DIST],
@@ -53,7 +80,6 @@ function endCamForAspect(aspect, look, glassSize) {
       fov,
     }
   }
-  const [gw, gh] = glassSize?.[0] ? glassSize : glassWorldSize()
   const tanHalf = Math.tan(half)
   const distH = gh / (2 * tanHalf * LANDSCAPE_FILL)
   const distW = gw / (2 * tanHalf * safe * LANDSCAPE_FILL)
@@ -65,10 +91,10 @@ function endCamForAspect(aspect, look, glassSize) {
   }
 }
 
-function yawAtZoom(t) {
+function yawAtZoom(t, lite = false) {
   const s = Math.min(1, Math.max(0, (t - 0.55) / 0.35))
   const e = s * s * (3 - 2 * s)
-  return TV_YAW * (1 - e)
+  return (lite ? PHONE_YAW : TV_YAW) * (1 - e)
 }
 
 function lerp(a, b, t) {
@@ -91,7 +117,7 @@ function curveGeometry(width, height, bend = 0.028) {
   return geo
 }
 
-function ShaderWarmup({ zoomRef, glassCenterRef, glassSizeRef, bootMap }) {
+function ShaderWarmup({ zoomRef, glassCenterRef, glassSizeRef, bootMap, lite, onWarmed }) {
   const { gl, scene, camera, size } = useThree()
   const { active, progress, loaded } = useProgress()
   const warmed = useRef(false)
@@ -126,9 +152,9 @@ function ShaderWarmup({ zoomRef, glassCenterRef, glassSizeRef, bootMap }) {
       })
       for (const t of [0, 0.45, 1]) {
         zoomRef.current = t
-        const start = startCamForAspect(aspect)
         const lookEnd = glassCenterRef?.current || GLASS_LOOK
-        const end = endCamForAspect(aspect, lookEnd, glassSizeRef.current)
+        const start = startCamForAspect(aspect, lookEnd, glassSizeRef.current, lite)
+        const end = endCamForAspect(aspect, lookEnd, glassSizeRef.current, lite)
         const pos = lerp3(start.pos, end.pos, t)
         const look = lerp3(start.look, end.look, t)
         camera.position.set(pos[0], pos[1], pos[2])
@@ -143,20 +169,22 @@ function ShaderWarmup({ zoomRef, glassCenterRef, glassSizeRef, bootMap }) {
     }
     zoomRef.current = saved
     window.__crtWarmed = true
+    onWarmed?.()
   })
 
   return null
 }
 
-function CameraRig({ zoomRef, glassCenterRef, glassSizeRef }) {
+function CameraRig({ zoomRef, glassCenterRef, glassSizeRef, lite }) {
   const { camera, size } = useThree()
   const aspect = size.width / Math.max(1, size.height)
-  const start = useMemo(() => startCamForAspect(aspect), [aspect])
 
   useFrame(() => {
     const t = zoomRef?.current ?? 0
     const lookEnd = glassCenterRef?.current || GLASS_LOOK
-    const end = endCamForAspect(aspect, lookEnd, glassSizeRef?.current)
+    const glass = glassSizeRef?.current
+    const start = startCamForAspect(aspect, lookEnd, glass, lite)
+    const end = endCamForAspect(aspect, lookEnd, glass, lite)
     const pos = lerp3(start.pos, end.pos, t)
     const look = lerp3(start.look, end.look, t)
     camera.position.set(pos[0], pos[1], pos[2])
@@ -266,9 +294,9 @@ function NightEnv() {
   return <Environment map={tex} environmentIntensity={0.3} background={false} />
 }
 
-function VintageCRT({ bootMap, onGlassRect, zoomRef, glassCenterRef, glassSizeRef }) {
+function VintageCRT({ bootMap, onGlassRect, zoomRef, glassCenterRef, glassSizeRef, lite = false }) {
   const group = useRef()
-  const { scene } = useGLTF('/assets/scene/r2/television_02.glb', false, true)
+  const { scene } = useGLTF(lite ? PHONE_GLB : DESKTOP_GLB, false, true)
   const clone = useMemo(() => scene.clone(true), [scene])
   const [screen, setScreen] = useState({
     position: [0, 0.29, 0.145],
@@ -276,7 +304,7 @@ function VintageCRT({ bootMap, onGlassRect, zoomRef, glassCenterRef, glassSizeRe
   })
 
   useFrame(() => {
-    const yaw = yawAtZoom(zoomRef?.current ?? 0)
+    const yaw = yawAtZoom(zoomRef?.current ?? 0, lite)
     if (group.current) group.current.rotation.y = yaw
     if (glassCenterRef) {
       glassCenterRef.current = [
@@ -300,10 +328,15 @@ function VintageCRT({ bootMap, onGlassRect, zoomRef, glassCenterRef, glassSizeRe
   useLayoutEffect(() => {
     clone.traverse((obj) => {
       if (!obj.isMesh || !obj.material) return
-      obj.castShadow = true
-      obj.receiveShadow = true
+      obj.castShadow = !lite
+      obj.receiveShadow = !lite
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material]
       mats.forEach((mat) => {
+        if (lite) {
+          mat.envMapIntensity = 0
+          mat.roughness = Math.min((mat.roughness ?? 0.5) + 0.12, 0.82)
+          return
+        }
         mat.envMapIntensity = 0.7
         mat.roughness = Math.min((mat.roughness ?? 0.42) + 0.1, 0.68)
         if (mat.color) mat.color.multiply(new THREE.Color(1.05, 0.97, 0.86))
@@ -318,7 +351,7 @@ function VintageCRT({ bootMap, onGlassRect, zoomRef, glassCenterRef, glassSizeRe
       position: [center.x, center.y + size.y * 0.145, box.max.z + 0.024],
       size: [size.x * 0.78, size.y * 0.55],
     })
-  }, [clone])
+  }, [clone, lite])
 
   const glassGeo = useMemo(
     () => curveGeometry(screen.size[0], screen.size[1], 0.012),
@@ -330,7 +363,7 @@ function VintageCRT({ bootMap, onGlassRect, zoomRef, glassCenterRef, glassSizeRe
   )
 
   return (
-    <group ref={group} scale={TV_SCALE} position={[0, 0, 0]} rotation={[0, TV_YAW, 0]}>
+    <group ref={group} scale={TV_SCALE} position={[0, 0, 0]} rotation={[0, lite ? PHONE_YAW : TV_YAW, 0]}>
       <primitive object={clone} />
       <mesh
         geometry={tubeGeo}
@@ -339,35 +372,49 @@ function VintageCRT({ bootMap, onGlassRect, zoomRef, glassCenterRef, glassSizeRe
         <meshBasicMaterial color="#0E0A05" />
       </mesh>
       <mesh geometry={tubeGeo} position={screen.position} renderOrder={2}>
-        <meshStandardMaterial
-          color="#000000"
-          emissive="#ffb000"
-          emissiveMap={bootMap}
-          emissiveIntensity={1}
-          roughness={1}
-          metalness={0}
-          toneMapped={false}
-          polygonOffset
-          polygonOffsetFactor={-1}
-          polygonOffsetUnits={-1}
-        />
+        {lite ? (
+          <meshBasicMaterial
+            map={bootMap}
+            toneMapped={false}
+            polygonOffset
+            polygonOffsetFactor={-1}
+            polygonOffsetUnits={-1}
+          />
+        ) : (
+          <meshStandardMaterial
+            color="#000000"
+            emissive="#ffb000"
+            emissiveMap={bootMap}
+            emissiveIntensity={1}
+            roughness={1}
+            metalness={0}
+            toneMapped={false}
+            polygonOffset
+            polygonOffsetFactor={-1}
+            polygonOffsetUnits={-1}
+          />
+        )}
       </mesh>
       <mesh
         geometry={glassGeo}
         position={[screen.position[0], screen.position[1], screen.position[2] + 0.008]}
         renderOrder={3}
       >
-        <meshPhysicalMaterial
-          color="#1a1410"
-          roughness={0.22}
-          metalness={0}
-          transparent
-          opacity={0.04}
-          clearcoat={0.4}
-          clearcoatRoughness={0.45}
-          envMapIntensity={0.1}
-          depthWrite={false}
-        />
+        {lite ? (
+          <meshBasicMaterial color="#1a1410" transparent opacity={0.05} depthWrite={false} />
+        ) : (
+          <meshPhysicalMaterial
+            color="#1a1410"
+            roughness={0.22}
+            metalness={0}
+            transparent
+            opacity={0.04}
+            clearcoat={0.4}
+            clearcoatRoughness={0.45}
+            envMapIntensity={0.1}
+            depthWrite={false}
+          />
+        )}
       </mesh>
       <GlassTracker screen={screen} onRect={onGlassRect} />
     </group>
@@ -677,7 +724,61 @@ function OnceContactShadows() {
   )
 }
 
-function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady, onGlassRect, suspended }) {
+function LiteDesk() {
+  return (
+    <group>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0.12]}>
+        <planeGeometry args={[2.6, 1.7]} />
+        <meshBasicMaterial color="#1c120c" />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.012, 0.18]}>
+        <planeGeometry args={[8, 6]} />
+        <meshBasicMaterial color="#08070a" />
+      </mesh>
+    </group>
+  )
+}
+
+function FpsGuard({ enabled, onSlow }) {
+  const last = useRef(performance.now())
+  const belowSince = useRef(null)
+  const fired = useRef(false)
+
+  useFrame(() => {
+    const now = performance.now()
+    const dt = now - last.current
+    last.current = now
+    if (!enabled || fired.current || !onSlow) return
+    if (!window.__crtWarmed) {
+      belowSince.current = null
+      return
+    }
+    if (dt <= 0 || dt > 400) return
+    const fps = 1000 / dt
+    window.__crtFps = Math.round(fps)
+    if (fps < 30) {
+      if (belowSince.current == null) belowSince.current = now
+      if (now - belowSince.current >= 2000) {
+        fired.current = true
+        onSlow()
+      }
+    } else {
+      belowSince.current = null
+    }
+  })
+
+  return null
+}
+
+function StatsProbe() {
+  const { gl } = useThree()
+  useFrame(() => {
+    window.__crtDraws = gl.info.render.calls
+  })
+  return null
+}
+
+function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady, onGlassRect, suspended, lite, onSlow, onWarmed }) {
   const glassCenterRef = useRef(GLASS_LOOK)
   const glassSizeRef = useRef(glassWorldSize())
   const bootMap = useBootTexture({
@@ -688,8 +789,40 @@ function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady, on
   const { scene } = useThree()
 
   useEffect(() => {
-    scene.background = new THREE.Color('#0b0e13')
-  }, [scene])
+    scene.background = new THREE.Color(lite ? '#07090c' : '#0b0e13')
+  }, [lite, scene])
+
+  if (lite) {
+    return (
+      <>
+        <color attach="background" args={['#07090c']} />
+        <hemisphereLight args={['#3a4450', '#120c08', 0.62]} />
+        <ambientLight intensity={0.28} color="#6a5a48" />
+        <directionalLight position={[0.35, 1.35, 0.85]} intensity={0.7} color="#e8c48a" />
+        <LiteDesk />
+        <VintageCRT
+          lite
+          bootMap={bootMap}
+          onGlassRect={onGlassRect}
+          zoomRef={zoomRef}
+          glassCenterRef={glassCenterRef}
+          glassSizeRef={glassSizeRef}
+        />
+        {!suspended && <OnceContactShadows />}
+        <CameraRig lite zoomRef={zoomRef} glassCenterRef={glassCenterRef} glassSizeRef={glassSizeRef} />
+        <ShaderWarmup
+          lite
+          zoomRef={zoomRef}
+          glassCenterRef={glassCenterRef}
+          glassSizeRef={glassSizeRef}
+          bootMap={bootMap}
+          onWarmed={onWarmed}
+        />
+        <FpsGuard enabled={!suspended} onSlow={onSlow} />
+        <StatsProbe />
+      </>
+    )
+  }
 
   return (
     <>
@@ -734,8 +867,10 @@ function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady, on
         glassCenterRef={glassCenterRef}
         glassSizeRef={glassSizeRef}
         bootMap={bootMap}
+        onWarmed={onWarmed}
       />
       <SafeComposer enableDof={enableDof} />
+      <StatsProbe />
     </>
   )
 }
@@ -752,20 +887,25 @@ export default function CRTScene({
   onGlassRect,
   onContextLost,
   suspended,
+  lite = false,
+  busy = true,
+  onSlow,
 }) {
-  const [dpr] = useState(canvasDpr)
+  const [dpr] = useState(() => (lite ? [1, 1] : canvasDpr()))
+  const [warmed, setWarmed] = useState(false)
+  const idle = lite && !busy && warmed && !suspended
   return (
-    <div className={`scene-layer scene-canvas ${revealed ? 'is-ready' : ''}`}>
+    <div className={`scene-layer scene-canvas ${revealed ? 'is-ready' : ''} ${lite ? 'is-lite' : ''}`}>
       <Canvas
-        frameloop={suspended ? 'never' : 'always'}
+        frameloop={suspended ? 'never' : idle ? 'demand' : 'always'}
         dpr={dpr}
         shadows={false}
         gl={{
-          antialias: true,
+          antialias: !lite,
           alpha: false,
-          powerPreference: 'high-performance',
+          powerPreference: lite ? 'low-power' : 'high-performance',
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 0.96,
+          toneMappingExposure: lite ? 1.02 : 0.96,
           outputColorSpace: THREE.SRGBColorSpace,
         }}
         camera={{ position: START_CAM.pos, fov: START_CAM.fov }}
@@ -789,6 +929,7 @@ export default function CRTScene({
       >
         <LoadBridge onProgress={onProgress} onReady={onReady} />
         <Scene
+          lite={lite}
           zoomRef={zoomRef}
           bootRunning={bootRunning}
           reducedMotion={reducedMotion}
@@ -796,6 +937,8 @@ export default function CRTScene({
           onBootReady={onBootReady}
           onGlassRect={onGlassRect}
           suspended={suspended}
+          onSlow={onSlow}
+          onWarmed={() => setWarmed(true)}
         />
       </Canvas>
     </div>

@@ -12,6 +12,9 @@ window.__crtDebug = {
   target: null,
   display: null,
   running: false,
+  lite: false,
+  draws: 0,
+  fps: null,
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(

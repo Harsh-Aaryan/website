@@ -2,6 +2,7 @@
  * HARSH.OS visual and motion settings.
  * Change phosphor colors, CRT intensity, and intro timing here.
  */
+import { canAttemptPhone3D } from './probe3d'
 export const THEMES = {
   amber: {
     id: 'amber',
@@ -92,7 +93,7 @@ export function isMobileViewport() {
   return window.matchMedia(`(max-width: ${BREAKPOINT_MOBILE}px)`).matches
 }
 
-/** Phones stay flat. Tablets and touch laptops at 800+ keep 3D. */
+/** Phones get a lite 3D CRT when the capability probe passes. */
 export function isPhoneLike() {
   const ua = navigator.userAgent || ''
   const uaMobile = /iPhone|iPod/i.test(ua) || (/Android/i.test(ua) && /Mobile/i.test(ua))
@@ -121,6 +122,7 @@ export function shouldUse3D() {
   if (params.get('flat') === '1') return false
   if (params.get('force3d') === '1') return hasWebGL()
   if (prefersReducedMotion()) return false
-  if (isPhoneLike()) return false
+  if (typeof navigator.deviceMemory === 'number' && navigator.deviceMemory < 3) return false
+  if (isPhoneLike()) return canAttemptPhone3D()
   return hasWebGL()
 }

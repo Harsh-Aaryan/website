@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Deterministic zoom-trigger stress: 20 out/in cycles on phone (flat)
- * and desktop-site (3D) profiles, plus a mid-transition reverse suite.
+ * Deterministic zoom-trigger stress: 20 out/in cycles on phone-flat,
+ * phone-3d, and desktop-site (3D) profiles, plus reverse / fallback suites.
  * Synthetic pointer events + 4x CPU.
  * Fails loudly if any trigger does not reach its target stage within 2.5s.
  */
@@ -27,6 +27,7 @@ const PROFILES = [
     userAgent: PHONE_UA,
     expectDisplay: 'flat',
     reverse: false,
+    search: 'flat=1',
   },
   {
     name: 'phone-flat-reverse',
@@ -37,6 +38,20 @@ const PROFILES = [
     userAgent: PHONE_UA,
     expectDisplay: 'flat',
     reverse: true,
+    search: 'flat=1',
+  },
+  {
+    name: 'phone-3d',
+    viewport: { width: 412, height: 915 },
+    deviceScaleFactor: 3,
+    isMobile: true,
+    hasTouch: true,
+    userAgent: PHONE_UA,
+    expectDisplay: '3d',
+    reverse: false,
+    search: 'force3d=1',
+    mixTriggers: true,
+    extras: true,
   },
   {
     name: 'desktop-site-3d',
@@ -140,15 +155,41 @@ async function waitReady(page, profile) {
       null,
       { timeout: 20000, polling: 50 }
     )
+    if (profile.extras) {
+      const lite = await page.evaluate(() => window.__crtDebug?.lite)
+      if (!lite) throw new Error(`FAIL ${profile.name} expected lite 3D`)
+    }
   }
   return { bootMs, display }
 }
 
+function profileUrl(base, profile) {
+  const url = new URL(base)
+  if (profile.search) {
+    const extra = new URLSearchParams(profile.search)
+    extra.forEach((value, key) => url.searchParams.set(key, value))
+  }
+  return url.toString()
+}
+
+async function openStartMenu(page) {
+  await synthPointer(page, '.start-button', 'start menu')
+  await page.waitForFunction(
+    () => {
+      const menu = document.querySelector('.start-menu')
+      const r = menu?.getBoundingClientRect()
+      return Boolean(r && r.width > 40 && r.height > 40)
+    },
+    null,
+    { timeout: LIMIT_MS, polling: 16 }
+  )
+}
+
 async function triggerZoomOut(page, cycle, profile) {
-  const useMenu = profile.expectDisplay !== '3d' && cycle % 2 === 1
+  const useMenu =
+    profile.mixTriggers || profile.expectDisplay !== '3d' ? cycle % 2 === 1 : false
   if (useMenu) {
-    await synthPointer(page, '.start-button', 'start menu')
-    await page.waitForSelector('.start-menu', { timeout: LIMIT_MS })
+    await openStartMenu(page)
     await synthPointer(page, '__menu-zoom__', 'Shut down / Zoom out')
     return 'menu'
   }
@@ -168,15 +209,71 @@ async function runCycles(page, profile) {
   const cycles = []
   for (let i = 1; i <= CYCLES; i += 1) {
     const via = await triggerZoomOut(page, i, profile)
+    if (profile.mixTriggers && i % 4 === 0) {
+      await synthPointer(page, '.zoom-out-btn', 'double-tap zoom out')
+    }
     const outMs = await waitStage(page, 'parked')
     if (outMs >= LIMIT_MS) throw new Error(`FAIL SLOW ${profile.name} #${i} ${via} out=${outMs}ms`)
     await synthPointer(page, '__parked__', 'parked zoom in')
+    if (profile.mixTriggers && i % 4 === 0) {
+      await synthPointer(page, '__parked__', 'double-tap PRESS ANY KEY')
+    }
     const inMs = await waitStage(page, 'os')
     if (inMs >= LIMIT_MS) throw new Error(`FAIL SLOW ${profile.name} #${i} ${via} in=${inMs}ms`)
     cycles.push({ cycle: i, via, outMs, inMs })
     log(`  ${profile.name} #${i} ${via} out=${outMs}ms in=${inMs}ms`)
   }
   return cycles
+}
+
+async function runPhone3dExtras(page, profile) {
+  await synthPointer(page, '.zoom-out-btn', 'extras to parked')
+  await waitStage(page, 'parked')
+  await synthPointer(page, '__parked__', 'start zoom in for mid-zoom reverse')
+  await page.waitForFunction(
+    () => window.__crtDebug?.running === true && window.__crtDebug?.target === 'os',
+    null,
+    { timeout: LIMIT_MS, polling: 16 }
+  )
+  await page.keyboard.press('Escape')
+  const reverseOut = await waitStage(page, 'parked')
+  if (reverseOut >= LIMIT_MS) throw new Error(`FAIL SLOW ${profile.name} mid-zoom reverse ${reverseOut}ms`)
+  log(`  ${profile.name} extra mid-zoom reverse ${reverseOut}ms`)
+
+  await synthPointer(page, '__parked__', 'return os before hide')
+  await waitStage(page, 'os')
+  await synthPointer(page, '.zoom-out-btn', 'zoom out then background')
+  await page.waitForFunction(
+    () => window.__crtDebug?.running === true,
+    null,
+    { timeout: LIMIT_MS, polling: 16 }
+  )
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'hidden',
+    })
+    document.dispatchEvent(new Event('visibilitychange'))
+  })
+  const hideMs = await waitStage(page, 'parked')
+  if (hideMs >= LIMIT_MS) throw new Error(`FAIL SLOW ${profile.name} background snap ${hideMs}ms`)
+  log(`  ${profile.name} extra background snap ${hideMs}ms`)
+
+  const draws = await page.evaluate(() => window.__crtDebug?.draws || window.__crtDraws || 0)
+  if (draws > 120) throw new Error(`FAIL ${profile.name} draw calls ${draws} > 120`)
+  log(`  ${profile.name} draws=${draws}`)
+
+  await page.evaluate(() => {
+    const canvas = document.querySelector('canvas')
+    const gl = canvas?.getContext('webgl2') || canvas?.getContext('webgl')
+    gl?.getExtension('WEBGL_lose_context')?.loseContext()
+  })
+  await page.waitForFunction(
+    () => window.__crtDebug?.display === 'flat',
+    null,
+    { timeout: 4000, polling: 16 }
+  )
+  log(`  ${profile.name} extra context-loss → flat`)
 }
 
 async function runReverse(page, profile) {
@@ -244,10 +341,12 @@ async function runProfile(browser, base, profile) {
     }
   })
 
-  await page.goto(new URL(base).toString(), { waitUntil: 'domcontentloaded', timeout: 30000 })
+  await page.goto(profileUrl(base, profile), { waitUntil: 'domcontentloaded', timeout: 30000 })
   const { bootMs, display } = await waitReady(page, profile)
   const cycles = profile.reverse ? await runReverse(page, profile) : await runCycles(page, profile)
-  if (profile.expectDisplay === '3d' && !profile.reverse) {
+  if (profile.extras) {
+    await runPhone3dExtras(page, profile)
+  } else if (profile.expectDisplay === '3d' && !profile.reverse) {
     await synthPointer(page, '.zoom-out-btn', 'park for context-loss')
     await waitStage(page, 'parked')
     await page.evaluate(() => {
@@ -260,6 +359,10 @@ async function runProfile(browser, base, profile) {
   const trimErrors = pageErrors.filter((msg) => /trim|ShadowAlpha|Cannot read properties of null/i.test(msg))
   if (trimErrors.length) {
     throw new Error(`FAIL pageerror ${trimErrors.join(' | ')}`)
+  }
+  const dirty = pageErrors.filter((msg) => !/AbortError|The user aborted a request/i.test(msg))
+  if (profile.extras && dirty.length) {
+    throw new Error(`FAIL console ${dirty.join(' | ')}`)
   }
   await context.close()
   return { name: profile.name, display, bootMs, cycles, reverse: profile.reverse, pageErrors }

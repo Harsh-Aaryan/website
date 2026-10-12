@@ -3,6 +3,7 @@ import {
   STORAGE,
   TIMING,
   applyTheme,
+  isPhoneLike,
   prefersReducedMotion,
   shouldUse3D,
 } from './config'
@@ -87,6 +88,8 @@ export default function App() {
   const reduced = prefersReducedMotion()
   const zoomParam = readZoomParam()
   const [use3d, setUse3d] = useState(() => shouldUse3D())
+  const lite = use3d && isPhoneLike()
+  const force3d = new URLSearchParams(window.location.search).get('force3d') === '1'
 
   const [stage, setStage] = useState(() => {
     if (skipStored) return 'os'
@@ -185,6 +188,9 @@ export default function App() {
       target: motion.dir || stageRef.current,
       display: use3dRef.current ? '3d' : 'flat',
       running: Boolean(motion.running),
+      lite: Boolean(use3dRef.current && isPhoneLike()),
+      draws: window.__crtDraws ?? 0,
+      fps: window.__crtFps ?? null,
     }
   }, [])
 
@@ -645,6 +651,7 @@ export default function App() {
       className="app"
       id="os-main"
       data-display={use3d ? '3d' : 'flat'}
+      data-lite={lite ? '1' : '0'}
       data-stage={stage}
       data-lock={stage === 'zooming' ? '1' : '0'}
     >
@@ -667,6 +674,14 @@ export default function App() {
               reducedMotion={reduced}
               revealed={ready3d || stage === 'os' || stage === 'parked'}
               enableDof={false}
+              lite={lite}
+              busy={
+                stage === 'loading' ||
+                stage === 'boot' ||
+                stage === 'zooming' ||
+                !ready3d
+              }
+              onSlow={lite && !force3d ? abandon3d : undefined}
               suspended={sceneHeld}
               onContextLost={abandon3d}
               onBootReady={startZoom}

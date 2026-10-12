@@ -1,6 +1,6 @@
 # Harsh Aaryan — CS Portfolio
 
-Vintage CRT portfolio for **Harsh Aaryan**. The site opens on a 5151-style amber monitor (desk scene on desktop, flat bezel on mobile), runs a short HARSH.OS boot, then dollies into the glass. After the handoff you are inside a one-bit amber desktop: icons, windows, and a taskbar.
+Vintage CRT portfolio for **Harsh Aaryan**. The site opens on a 5151-style amber monitor (full desk scene on desktop, a lightweight Television 02 scene on capable phones, flat bezel fallback otherwise), runs a short HARSH.OS boot, then dollies into the glass. After the handoff you are inside a one-bit amber desktop: icons, windows, and a taskbar.
 
 Live: [https://harshaaryan.netlify.app](https://harshaaryan.netlify.app)
 
@@ -55,7 +55,7 @@ The desktop intro is a photoreal CRT on a dark desk in a night room. Models and 
 
 | Asset | Author | Source | License | In repo |
 | --- | --- | --- | --- | --- |
-| Television 02 | Benny Weimer | https://polyhaven.com/a/television_02 | CC0 1.0 | `public/assets/scene/r2/television_02.glb` (~317KB meshopt + 2048 WebP) |
+| Television 02 | Benny Weimer | https://polyhaven.com/a/television_02 | CC0 1.0 | `public/assets/scene/r2/television_02.glb` (~317KB) and phone `television_02_1k.glb` (~143KB) |
 | Unfinished Office Night (1K env) | Sergej Majboroda | https://polyhaven.com/a/unfinished_office_night | CC0 1.0 | `public/assets/scene/r1/unfinished_office_night_1k.jpg` |
 | Modern Buildings Night | Greg Zaal | https://polyhaven.com/a/modern_buildings_night | CC0 1.0 | `public/assets/scene/r1/modern_buildings_night.webp` |
 | Dark Wood | Dario Barresi, Dimitrios Savva, Rico Cilliers | https://polyhaven.com/a/dark_wood | CC0 1.0 | `public/assets/scene/r1/dark_wood_*_1k.webp` |
@@ -63,7 +63,7 @@ The desktop intro is a photoreal CRT on a dark desk in a night room. Models and 
 
 The landing monitor is Poly Haven **Television 02** by Benny Weimer (CC0) — a photoreal vintage CRT. Sketchfab has CC-BY computer CRTs but `/v3/models/{id}/download` returns 401 without a token.
 
-Mobile and no-WebGL use the flat CRT fallback. `prefers-reduced-motion` still runs the boot intro on that fallback (or a motion-free 3D path with `?force3d=1`) — it skips dolly, flicker, and typing, not the intro itself. The Three.js scene is lazy-loaded on the themed night-room background.
+Capable phones (WebGL2, no major-performance caveat, `deviceMemory >= 3` when known, and a ~2s FPS check) get the lite Television 02 scene. `?flat=1`, reduced motion, context loss, or a sustained sub-30 FPS window fall back to the flat CRT. `?force3d=1` forces the 3D path when WebGL exists. The Three.js scene is lazy-loaded.
 
 ## Layout
 
