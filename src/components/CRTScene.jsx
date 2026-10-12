@@ -9,6 +9,7 @@ import {
 import { Bloom, DepthOfField, EffectComposer, Noise, Vignette } from '@react-three/postprocessing'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
+import { bindContextLoss, createSafeRenderer } from '../glSafe'
 import { useBootTexture } from './ScreenBoot'
 
 const TV_SCALE = 1.55
@@ -903,31 +904,19 @@ export default function CRTScene({
         frameloop={suspended ? 'never' : idle ? 'demand' : 'always'}
         dpr={dpr}
         shadows={false}
-        gl={{
-          antialias: !lite,
-          alpha: false,
-          powerPreference: lite ? 'low-power' : 'high-performance',
-          toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: lite ? 1.02 : 0.96,
-          outputColorSpace: THREE.SRGBColorSpace,
-        }}
+        gl={(canvas) =>
+          createSafeRenderer(THREE, canvas, {
+            antialias: !lite,
+            alpha: false,
+            powerPreference: lite ? 'low-power' : 'high-performance',
+            toneMapping: THREE.ACESFilmicToneMapping,
+            toneMappingExposure: lite ? 1.02 : 0.96,
+            outputColorSpace: THREE.SRGBColorSpace,
+          })
+        }
         camera={{ position: START_CAM.pos, fov: START_CAM.fov }}
         onCreated={({ gl }) => {
-          const ctx = gl.getContext()
-          if (ctx && typeof ctx.getContextAttributes === 'function') {
-            const orig = ctx.getContextAttributes.bind(ctx)
-            ctx.getContextAttributes = () => orig() || { alpha: false }
-          }
-          const onLost = (event) => {
-            event.preventDefault()
-            try {
-              gl.setAnimationLoop(null)
-            } catch {
-              /* ignore */
-            }
-            window.requestAnimationFrame(() => onContextLost?.())
-          }
-          gl.domElement.addEventListener('webglcontextlost', onLost, { once: true })
+          bindContextLoss(gl, onContextLost)
         }}
       >
         <LoadBridge onProgress={onProgress} onReady={onReady} />

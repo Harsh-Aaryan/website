@@ -2,6 +2,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { ContactShadows, useGLTF, useProgress } from '@react-three/drei'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
+import { bindContextLoss, createSafeRenderer } from '../glSafe'
 import { useBootTexture } from './ScreenBoot'
 
 const TV_SCALE = 1.55
@@ -340,7 +341,12 @@ function LoadBridge({ onProgress, onReady }) {
 }
 
 function FpsGuard({ active, onFrame }) {
+  const { gl } = useThree()
   const last = useRef(0)
+  const armedAt = useRef(0)
+  const lastTex = useRef(-1)
+  const lastProg = useRef(-1)
+  const skipN = useRef(0)
   const onFrameRef = useRef(onFrame)
   onFrameRef.current = onFrame
 
@@ -348,6 +354,27 @@ function FpsGuard({ active, onFrame }) {
     const now = performance.now()
     if (!active) {
       last.current = 0
+      armedAt.current = 0
+      return
+    }
+    if (!armedAt.current) armedAt.current = now
+    let tex = 0
+    let prog = 0
+    try {
+      tex = gl.info?.memory?.textures ?? 0
+      prog = gl.info?.programs?.length ?? 0
+    } catch {
+      last.current = now
+      return
+    }
+    if (tex !== lastTex.current || prog !== lastProg.current) {
+      lastTex.current = tex
+      lastProg.current = prog
+      skipN.current = 2
+    }
+    if (now - armedAt.current < 300 || skipN.current > 0) {
+      if (skipN.current > 0) skipN.current -= 1
+      last.current = now
       return
     }
     if (last.current) {
@@ -454,31 +481,19 @@ export default function CRTSceneLite({
         frameloop={suspended ? 'never' : idle ? 'demand' : 'always'}
         dpr={[1, 1.5]}
         shadows={false}
-        gl={{
-          antialias: false,
-          alpha: false,
-          powerPreference: 'low-power',
-          toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.02,
-          outputColorSpace: THREE.SRGBColorSpace,
-        }}
+        gl={(canvas) =>
+          createSafeRenderer(THREE, canvas, {
+            antialias: false,
+            alpha: false,
+            powerPreference: 'low-power',
+            toneMapping: THREE.ACESFilmicToneMapping,
+            toneMappingExposure: 1.02,
+            outputColorSpace: THREE.SRGBColorSpace,
+          })
+        }
         camera={{ position: START_CAM.pos, fov: START_CAM.fov }}
         onCreated={({ gl }) => {
-          const ctx = gl.getContext()
-          if (ctx && typeof ctx.getContextAttributes === 'function') {
-            const orig = ctx.getContextAttributes.bind(ctx)
-            ctx.getContextAttributes = () => orig() || { alpha: false }
-          }
-          const onLost = (event) => {
-            event.preventDefault()
-            try {
-              gl.setAnimationLoop(null)
-            } catch {
-              /* ignore */
-            }
-            window.requestAnimationFrame(() => onContextLost?.())
-          }
-          gl.domElement.addEventListener('webglcontextlost', onLost, { once: true })
+          bindContextLoss(gl, onContextLost)
         }}
       >
         <LoadBridge onProgress={onProgress} onReady={onReady} />

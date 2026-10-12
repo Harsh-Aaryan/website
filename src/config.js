@@ -108,11 +108,15 @@ export function isPhoneLike() {
 export function hasWebGL() {
   try {
     const canvas = document.createElement('canvas')
-    return Boolean(
+    const ctx =
       canvas.getContext('webgl2') ||
-        canvas.getContext('webgl') ||
-        canvas.getContext('experimental-webgl')
-    )
+      canvas.getContext('webgl') ||
+      canvas.getContext('experimental-webgl')
+    if (!ctx || ctx.isContextLost?.()) return false
+    ctx.getShaderPrecisionFormat?.(ctx.FRAGMENT_SHADER, ctx.HIGH_FLOAT)?.precision
+    ctx.getParameter?.(ctx.MAX_TEXTURE_SIZE)
+    ctx.getExtension?.('WEBGL_lose_context')
+    return true
   } catch {
     return false
   }

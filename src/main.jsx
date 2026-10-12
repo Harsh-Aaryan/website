@@ -18,7 +18,7 @@ window.__crtDebug = {
   progress: 0,
   t: 0,
   target: null,
-  display: null,
+  display: 'flat',
   running: false,
   lite: false,
   draws: 0,

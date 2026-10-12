@@ -52,6 +52,21 @@ const PROFILES = [
     search: 'force3d=1',
     mixTriggers: true,
     extras: true,
+    cpu: 4,
+  },
+  {
+    name: 'phone-3d-1x',
+    viewport: { width: 412, height: 915 },
+    deviceScaleFactor: 3,
+    isMobile: true,
+    hasTouch: true,
+    userAgent: PHONE_UA,
+    expectDisplay: '3d',
+    reverse: false,
+    search: 'force3d=1',
+    mixTriggers: true,
+    hold3d: true,
+    cpu: 1,
   },
   {
     name: 'desktop-site-3d',
@@ -230,6 +245,12 @@ async function runCycles(page, profile) {
     }
     const inMs = await waitStage(page, 'os')
     if (inMs >= LIMIT_MS) throw new Error(`FAIL SLOW ${profile.name} #${i} ${via} in=${inMs}ms`)
+    if (profile.hold3d) {
+      const display = await page.evaluate(() => window.__crtDebug?.display)
+      if (display !== '3d') {
+        throw new Error(`FAIL ${profile.name} #${i} dropped to display=${display}`)
+      }
+    }
     cycles.push({ cycle: i, via, outMs, inMs })
     log(`  ${profile.name} #${i} ${via} out=${outMs}ms in=${inMs}ms`)
   }
@@ -328,6 +349,141 @@ async function runReverse(page, profile) {
   return cycles
 }
 
+async function loseWebGL(page) {
+  return page.evaluate(() => {
+    let n = 0
+    for (const canvas of document.querySelectorAll('canvas')) {
+      const gl = canvas.getContext('webgl2') || canvas.getContext('webgl')
+      const ext = gl?.getExtension?.('WEBGL_lose_context')
+      if (ext) {
+        ext.loseContext()
+        n += 1
+      }
+    }
+    return n
+  })
+}
+
+async function assertFlatVisible(page, label, pageErrors) {
+  await page.waitForFunction(
+    () => {
+      const d = window.__crtDebug
+      const content =
+        document.querySelector('.os-root') ||
+        document.querySelector('.boot-screen') ||
+        document.querySelector('.flat-os-bezel') ||
+        document.querySelector('.flat-crt')
+      const r = content?.getBoundingClientRect()
+      const main = document.querySelector('#os-main')
+      return Boolean(
+        d &&
+          d.display === 'flat' &&
+          main &&
+          r &&
+          r.width > 80 &&
+          r.height > 80
+      )
+    },
+    null,
+    { timeout: 5000, polling: 16 }
+  )
+  const dirty = pageErrors.filter((msg) => !/AbortError|The user aborted a request/i.test(msg))
+  if (dirty.length) {
+    throw new Error(`FAIL ${label} pageerror ${dirty.join(' | ')}`)
+  }
+}
+
+async function openLossPage(browser, base, skipIntro) {
+  const context = await browser.newContext({
+    viewport: { width: 412, height: 915 },
+    deviceScaleFactor: 3,
+    isMobile: true,
+    hasTouch: true,
+    userAgent: PHONE_UA,
+    reducedMotion: 'no-preference',
+  })
+  const page = await context.newPage()
+  const pageErrors = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  const cdp = await context.newCDPSession(page)
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 })
+  await page.addInitScript((skip) => {
+    try {
+      if (skip) localStorage.setItem('harsh-os-skip-intro', '1')
+      else localStorage.removeItem('harsh-os-skip-intro')
+      localStorage.setItem('harsh-os-muted', '1')
+    } catch {
+      /* ignore */
+    }
+  }, skipIntro)
+  const url = new URL(base)
+  url.searchParams.set('force3d', '1')
+  await page.goto(url.toString(), { waitUntil: 'domcontentloaded', timeout: 30000 })
+  return { context, page, pageErrors }
+}
+
+async function runContextLossSuite(browser, base) {
+  const cases = []
+
+  {
+    const { context, page, pageErrors } = await openLossPage(browser, base, false)
+    await page.waitForFunction(() => Boolean(document.querySelector('canvas')), null, {
+      timeout: 15000,
+      polling: 16,
+    })
+    await page.waitForTimeout(40)
+    await loseWebGL(page)
+    await assertFlatVisible(page, 'loss-mount', pageErrors)
+    log('  phone-3d-loss mount → flat')
+    await context.close()
+    cases.push({ name: 'mount', outMs: 0, inMs: 0 })
+  }
+
+  {
+    const { context, page, pageErrors } = await openLossPage(browser, base, false)
+    await page.waitForFunction(
+      () => window.__crtDebug?.stage === 'boot' && document.querySelector('canvas'),
+      null,
+      { timeout: 15000, polling: 16 }
+    )
+    await page.waitForTimeout(80)
+    await loseWebGL(page)
+    await assertFlatVisible(page, 'loss-boot', pageErrors)
+    log('  phone-3d-loss boot → flat')
+    await context.close()
+    cases.push({ name: 'boot', outMs: 0, inMs: 0 })
+  }
+
+  {
+    const { context, page, pageErrors } = await openLossPage(browser, base, true)
+    await waitStage(page, 'os', 20000)
+    await synthPointer(page, '.zoom-out-btn', 'loss parked zoom out')
+    await waitStage(page, 'parked')
+    await loseWebGL(page)
+    await assertFlatVisible(page, 'loss-parked', pageErrors)
+    log('  phone-3d-loss parked → flat')
+    await context.close()
+    cases.push({ name: 'parked', outMs: 0, inMs: 0 })
+  }
+
+  {
+    const { context, page, pageErrors } = await openLossPage(browser, base, true)
+    await waitStage(page, 'os', 20000)
+    await synthPointer(page, '.zoom-out-btn', 'loss dolly zoom out')
+    await page.waitForFunction(() => window.__crtDebug?.running === true, null, {
+      timeout: LIMIT_MS,
+      polling: 16,
+    })
+    await loseWebGL(page)
+    await assertFlatVisible(page, 'loss-dolly', pageErrors)
+    log('  phone-3d-loss mid-dolly → flat')
+    await context.close()
+    cases.push({ name: 'dolly', outMs: 0, inMs: 0 })
+  }
+
+  return { name: 'phone-3d-loss', display: 'flat', bootMs: 0, cycles: cases, reverse: false, pageErrors: [] }
+}
+
 async function runProfile(browser, base, profile) {
   const context = await browser.newContext({
     viewport: profile.viewport,
@@ -341,7 +497,7 @@ async function runProfile(browser, base, profile) {
   const pageErrors = []
   page.on('pageerror', (error) => pageErrors.push(error.message))
   const cdp = await context.newCDPSession(page)
-  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 })
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: profile.cpu || 4 })
   await page.addInitScript(() => {
     try {
       localStorage.setItem('harsh-os-skip-intro', '1')
@@ -406,7 +562,7 @@ async function main() {
   try {
     for (const profile of PROFILES) {
       log(
-        `\n== ${profile.name} ${profile.viewport.width}x${profile.viewport.height} dpr=${profile.deviceScaleFactor} cpu=4x${profile.reverse ? ' reverse' : ''} ==`
+        `\n== ${profile.name} ${profile.viewport.width}x${profile.viewport.height} dpr=${profile.deviceScaleFactor} cpu=${profile.cpu || 4}x${profile.reverse ? ' reverse' : ''} ==`
       )
       try {
         results.push(await runProfile(browser, base, profile))
@@ -414,6 +570,13 @@ async function main() {
         failures.push(`${profile.name}: ${error.message}`)
         log(`FAIL ${profile.name}: ${error.message}`)
       }
+    }
+    log(`\n== phone-3d-loss context-loss suite ==`)
+    try {
+      results.push(await runContextLossSuite(browser, base))
+    } catch (error) {
+      failures.push(`phone-3d-loss: ${error.message}`)
+      log(`FAIL phone-3d-loss: ${error.message}`)
     }
   } finally {
     await browser.close()

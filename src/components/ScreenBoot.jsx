@@ -1,7 +1,9 @@
+import { useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { TIMING } from '../config'
 import { BOOT_LINES } from '../content'
+import { isGlAlive, readGlCaps, shieldWebGL } from '../glSafe'
 
 function paintBoot(canvas, count, scale = 1) {
   const ctx = canvas.getContext('2d')
@@ -40,6 +42,7 @@ function paintBoot(canvas, count, scale = 1) {
 
 /** Amber BIOS text painted onto a CanvasTexture for the CRT glass. */
 export function useBootTexture({ running, reduced, onReady, scale = 1 }) {
+  const gl = useThree((state) => state.gl)
   const canvas = useMemo(() => {
     const el = document.createElement('canvas')
     el.width = 1024
@@ -51,7 +54,6 @@ export function useBootTexture({ running, reduced, onReady, scale = 1 }) {
   const texture = useMemo(() => {
     const tex = new THREE.CanvasTexture(canvas)
     tex.colorSpace = THREE.SRGBColorSpace
-    tex.anisotropy = 8
     tex.generateMipmaps = false
     tex.minFilter = scale > 1 ? THREE.LinearFilter : THREE.NearestFilter
     tex.magFilter = scale > 1 ? THREE.LinearFilter : THREE.NearestFilter
@@ -62,6 +64,13 @@ export function useBootTexture({ running, reduced, onReady, scale = 1 }) {
 
   const onReadyRef = useRef(onReady)
   onReadyRef.current = onReady
+  const glRef = useRef(gl)
+  glRef.current = gl
+
+  useEffect(() => {
+    const caps = readGlCaps(gl)
+    texture.anisotropy = caps.ok && caps.precision > 0 ? 8 : 1
+  }, [gl, texture])
 
   useEffect(() => {
     let cancelled = false
@@ -69,8 +78,19 @@ export function useBootTexture({ running, reduced, onReady, scale = 1 }) {
     let holdId = 0
     let finished = false
 
+    const glDead = () => {
+      try {
+        const renderer = glRef.current
+        const ctx = renderer?.getContext?.()
+        if (ctx) shieldWebGL(ctx)
+        return !isGlAlive(ctx)
+      } catch {
+        return true
+      }
+    }
+
     const finish = () => {
-      if (cancelled || finished || !running) return
+      if (cancelled || finished || !running || glDead()) return
       finished = true
       const hold = new URLSearchParams(window.location.search).get('hold') === '1'
       if (hold) return
@@ -78,23 +98,42 @@ export function useBootTexture({ running, reduced, onReady, scale = 1 }) {
     }
 
     const draw = (count) => {
-      if (cancelled) return
-      paintBoot(canvas, count, scale)
-      texture.needsUpdate = true
+      if (cancelled || glDead()) return
+      try {
+        readGlCaps(glRef.current)
+        paintBoot(canvas, count, scale)
+        if (glDead()) return
+        texture.needsUpdate = true
+      } catch {
+        cancelled = true
+        return
+      }
       if (count >= BOOT_LINES.length) finish()
     }
+
+    const onLost = () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+      window.clearTimeout(holdId)
+    }
+    window.addEventListener('webglcontextlost', onLost, true)
 
     if (!running || reduced) {
       draw(BOOT_LINES.length)
       return () => {
         cancelled = true
         window.clearTimeout(holdId)
+        window.removeEventListener('webglcontextlost', onLost, true)
       }
     }
 
     let count = 1
     draw(count)
     intervalId = window.setInterval(() => {
+      if (glDead()) {
+        onLost()
+        return
+      }
       count += 1
       draw(Math.min(count, BOOT_LINES.length))
       if (count >= BOOT_LINES.length) window.clearInterval(intervalId)
@@ -104,6 +143,7 @@ export function useBootTexture({ running, reduced, onReady, scale = 1 }) {
       cancelled = true
       window.clearInterval(intervalId)
       window.clearTimeout(holdId)
+      window.removeEventListener('webglcontextlost', onLost, true)
     }
   }, [canvas, reduced, running, scale, texture])
 

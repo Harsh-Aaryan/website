@@ -1,17 +1,22 @@
+import { isGlAlive, shieldWebGL } from './glSafe'
+
 /**
  * Cheap capability probe used before mounting 3D, especially on phones.
  * Reduced-motion and ?flat=1 are handled in shouldUse3D().
  */
+
 export function probeWebGL2() {
   try {
     const canvas = document.createElement('canvas')
     const strict = canvas.getContext('webgl2', { failIfMajorPerformanceCaveat: true })
-    if (strict) {
+    if (isGlAlive(strict)) {
+      shieldWebGL(strict)
       strict.getExtension('WEBGL_lose_context')?.loseContext()
       return { ok: true, caveat: false }
     }
     const loose = canvas.getContext('webgl2', { failIfMajorPerformanceCaveat: false })
-    if (!loose) return { ok: false, caveat: true }
+    if (!isGlAlive(loose)) return { ok: false, caveat: true }
+    shieldWebGL(loose)
     loose.getExtension('WEBGL_lose_context')?.loseContext()
     return { ok: true, caveat: true }
   } catch {

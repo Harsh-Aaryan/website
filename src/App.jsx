@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import React, { Component, lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import {
   STORAGE,
   TIMING,
@@ -153,13 +153,32 @@ const sceneImport = (() => {
 })()
 const Scene3D = lazy(() => sceneImport)
 
+class SceneGuard extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { failed: false }
+  }
+
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+
+  componentDidCatch() {
+    this.props.onFail?.()
+  }
+
+  render() {
+    if (this.state.failed) return null
+    return this.props.children
+  }
+}
+
 export default function App() {
   const skipStored = readStored(STORAGE.skipIntro, '') === '1'
   const reduced = prefersReducedMotion()
   const zoomParam = readZoomParam()
   const [use3d, setUse3d] = useState(() => shouldUse3D())
   const lite = use3d && isPhoneLike()
-  const force3d = new URLSearchParams(window.location.search).get('force3d') === '1'
   const liteRef = useRef(lite)
   liteRef.current = lite
   const fpsTimes = useRef([])
@@ -173,7 +192,7 @@ export default function App() {
     if (times.length < 8) return
     const sorted = times.slice().sort((a, b) => a - b)
     const p75 = sorted[Math.floor((sorted.length - 1) * 0.75)]
-    if (p75 > 1000 / 30) fpsBad.current += 1
+    if (p75 > 50) fpsBad.current += 1
     else fpsBad.current = 0
   }
 
@@ -549,6 +568,12 @@ export default function App() {
     }
     dying3d.current = true
     use3dRef.current = false
+    window.__crtDebug = {
+      ...(window.__crtDebug || {}),
+      display: 'flat',
+      lite: false,
+      osFrame: 'flat',
+    }
     setSceneHeld(true)
     const running = motionRef.current.running
     const target = motionRef.current.dir
@@ -562,6 +587,7 @@ export default function App() {
     stopPump()
     motionRef.current.running = false
     motionRef.current.dir = null
+    publishDebug()
     const settle = () => {
       clearOverlayFrame()
       glassRectRef.current = null
@@ -586,17 +612,15 @@ export default function App() {
       }
       publishDebug()
     }
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(settle)
-    })
+    settle()
   }, [advanceZoom, goStage, landOnOs, publishDebug])
 
   useEffect(() => {
-    if (!lite || force3d) return
+    if (!lite) return
     if (stage !== 'os' && stage !== 'parked') return
     if (fpsBad.current < 2) return
     abandon3d()
-  }, [abandon3d, force3d, lite, stage])
+  }, [abandon3d, lite, stage])
 
   useEffect(() => {
     if (stage !== 'os') return
@@ -635,8 +659,18 @@ export default function App() {
       event.preventDefault()
       abandon3d()
     }
+    const onErr = (event) => {
+      const msg = event?.message || event?.error?.message || ''
+      if (!/precision|WebGL|webgl|WEBGL|context lost|WEBGL_LOST/i.test(msg)) return
+      event.preventDefault?.()
+      abandon3d()
+    }
     window.addEventListener('webglcontextlost', onLost, true)
-    return () => window.removeEventListener('webglcontextlost', onLost, true)
+    window.addEventListener('error', onErr)
+    return () => {
+      window.removeEventListener('webglcontextlost', onLost, true)
+      window.removeEventListener('error', onErr)
+    }
   }, [abandon3d])
 
   useEffect(() => {
@@ -777,6 +811,7 @@ export default function App() {
         <>
           <div className="room-fallback" aria-hidden="true" />
           <Suspense fallback={<LoadingScreen progress={loadProgress} compact />}>
+            <SceneGuard onFail={abandon3d}>
             <Scene3D
               zoomRef={zoomRef}
               onReady={() => setReady3d(true)}
@@ -797,7 +832,7 @@ export default function App() {
               suspended={sceneHeld}
               onContextLost={abandon3d}
               onBootReady={() => {
-                judgeFpsSamples()
+                fpsTimes.current = []
                 startZoom()
               }}
               onGlassRect={(rect) => {
@@ -808,6 +843,7 @@ export default function App() {
                 }
               }}
             />
+            </SceneGuard>
           </Suspense>
         </>
       )}
