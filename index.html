@@ -1,360 +1,75 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Harsh Aaryan - CS Portfolio</title>
-    
-    <!-- Google Fonts - JetBrains Mono for retro terminal look -->
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
-    
-    <!-- Main stylesheet -->
-    <link rel="stylesheet" href="styles.css">
-    
-    <!-- Optional: Add favicon -->
-    <!-- <link rel="icon" type="image/x-icon" href="/favicon.ico"> -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Harsh Aaryan - CS Portfolio</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta name="description" content="Harsh Aaryan — Computer Science student and software engineer. Portfolio, projects, resume, and contact.">
+  <meta name="theme-color" content="#0E0A05">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=VT323&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=VT323&display=swap">
+  </noscript>
+  <style>
+    html, body, #root {
+      margin: 0;
+      height: 100%;
+      color: #FFB000;
+      background:
+        radial-gradient(ellipse 26% 44% at 7% 38%, rgba(143, 180, 201, 0.2), transparent 60%),
+        radial-gradient(ellipse 46% 36% at 72% 78%, rgba(255, 176, 0, 0.05), transparent 58%),
+        linear-gradient(180deg, #0b0d12 0%, #07090c 46%, #101318 100%);
+    }
+    .boot-loader {
+      position: relative;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: VT323, monospace;
+      letter-spacing: 0.08em;
+      gap: 16px;
+    }
+    .boot-loader::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 22%;
+      width: 16%;
+      height: 36%;
+      background: linear-gradient(90deg, rgba(143, 180, 201, 0.16), transparent);
+      pointer-events: none;
+    }
+    .boot-loader-bar {
+      width: min(280px, 70vw);
+      height: 10px;
+      border: 1px solid #FFB000;
+      padding: 2px;
+    }
+    .boot-loader-bar > i {
+      display: block;
+      height: 100%;
+      width: 28%;
+      background: #FFB000;
+      animation: load 1.2s steps(8, end) infinite;
+    }
+    @keyframes load {
+      0% { width: 8%; }
+      100% { width: 92%; }
+    }
+  </style>
 </head>
 <body>
-    <!-- Terminal window container -->
-    <div class="terminal-window">
-        <!-- Terminal header with classic window controls -->
-        <div class="terminal-header">
-            <div class="terminal-buttons">
-                <div class="terminal-btn btn-close"></div>
-                <div class="terminal-btn btn-minimize"></div>
-                <div class="terminal-btn btn-maximize"></div>
-            </div>
-            <div class="terminal-title">portfolio.sh - zsh</div>
-        </div>
-        
-        <!-- Main content area -->
-        <div class="terminal-content">
-            <!-- Header section with ASCII art and name -->
-            <header class="header">
-                <!-- ASCII art banner - can be customized -->
-                <div class="ascii-art">
- ██████╗███████╗    ██████╗  ██████╗ ██████╗ ████████╗███████╗ ██████╗ ██╗     ██╗ ██████╗ 
-██╔════╝██╔════╝    ██╔══██╗██╔═══██╗██╔══██╗╚══██╔══╝██╔════╝██╔═══██╗██║     ██║██╔═══██╗
-██║     ███████╗    ██████╔╝██║   ██║██████╔╝   ██║   █████╗  ██║   ██║██║     ██║██║   ██║
-██║     ╚════██║    ██╔═══╝ ██║   ██║██╔══██╗   ██║   ██╔══╝  ██║   ██║██║     ██║██║   ██║
-╚██████╗███████║    ██║     ╚██████╔╝██║  ██║   ██║   ██║     ╚██████╔╝███████╗██║╚██████╔╝
- ╚═════╝╚══════╝    ╚═╝      ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝      ╚═════╝ ╚══════╝╚═╝ ╚═════╝ 
-                </div>
-                
-                <!-- TODO: Replace with your actual name -->
-                <h1 class="name">Harsh Aaryan</h1>
-                
-                <!-- TODO: Customize your title/role -->
-                <p class="title">Computer Science Student & Software Engineer</p>
-                
-                <!-- Contact Information -->
-                <div class="contact-info">
-                    <p>Email: harsharyan4@gmail.com</p>
-                    <p>Phone: 425-209-8017</p>
-                    <p>GitHub: <a href="https://github.com/Harsh-Aaryan" target="_blank">github.com/Harsh-Aaryan</a></p>
-                    <p>Website: <a href="https://harshaaryan.tech" target="_blank">harshaaryan.tech</a></p>
-                </div>
-                
-                <!-- Terminal prompt with blinking cursor -->
-                <div>
-                    <span class="prompt">user@portfolio:~$</span>
-                    <span class="cursor"></span>
-                </div>
-            </header>
-
-            <!-- Navigation menu styled as terminal commands -->
-            <nav class="nav">
-                <a href="#about" class="nav-item">./about</a>
-                <a href="#projects" class="nav-item">./projects</a>
-                <a href="#skills" class="nav-item">./skills</a>
-                <a href="#contact" class="nav-item">./contact</a>
-            </nav>
-
-            <!-- About section -->
-            <section id="about" class="section">
-                <h2 class="section-header">About Me</h2>
-                <div class="about-content">
-                    <div class="about-text">
-                        <h3>Education</h3>
-                        <p>Missouri University of Science & Technology (Spring 2026)</p>
-                        <p>Bachelor of Science in Computer Science (GPA - 3.7/4.0)</p>
-
-                        <h3>Experience</h3>
-                        <div class="experience-item">
-                            <h4>Lead Research Assistant - Cybersecurity Research</h4>
-                            <p class="date">Aug 2025 - Present</p>
-                            <ul>
-                                <li>Researched cybersecurity vulnerabilities in L2-L4 autonomous vehicle systems using luminescent materials to exploit sensor systems; analyzed attack vectors and developed countermeasures using Python machine learning algorithms</li>
-                                <li>Implemented ROS2/CARLA simulation testbeds to evaluate stability, scalability, and efficiency of distributed adversarial perception systems</li>
-                            </ul>
-                        </div>
-
-                        <div class="experience-item">
-                            <h4>Prime Therapeutics - Software Engineer Intern</h4>
-                            <p class="date">May 2024 - July 2024</p>
-                            <ul>
-                                <li>Built full-stack internal video sharing platform with React frontend and Node.js backend; developed REST APIs and reusable UI components using JavaScript, HTML5, and CSS3</li>
-                                <li>Engineered data pipelines achieving sub-5 second video upload and retrieval; contributed to code reviews in an Agile/Scrum environment using Git</li>
-                            </ul>
-                        </div>
-
-                        <div class="experience-item">
-                            <h4>PeoplePerHour - Front End Developer</h4>
-                            <p class="date">Feb 2020 - May 2023</p>
-                            <ul>
-                                <li>Delivered 200+ client web applications using HTML5, CSS3, and JavaScript; maintained a 95% client satisfaction rate through iterative design and strong communication</li>
-                            </ul>
-                        </div>
-                    </div>
-                    
-                    <!-- Terminal-style info display -->
-                    <div class="terminal-output">
-                        <div class="output-line">
-                            <span class="output-prompt">$</span>
-                            <span class="output-command">cat interests.txt</span>
-                        </div>
-                        <!-- TODO: Update your interests -->
-                        <div class="output-line">
-                            <span class="output-result">• Web Development</span>
-                        </div>
-                        <div class="output-line">
-                            <span class="output-result">• Cybersecurity Research</span>
-                        </div>
-                        <div class="output-line">
-                            <span class="output-result">• Full-Stack Engineering</span>
-                        </div>
-                        <div class="output-line">
-                            <span class="output-result">• AI / ML & Simulation</span>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Skills section -->
-            <section id="skills" class="section">
-                <h2 class="section-header">Skills</h2>
-                <div class="skills-grid">
-                    <div class="skill-category">
-                        <h3>Languages</h3>
-                        <div class="skill-item">JavaScript</div>
-                        <div class="skill-item">TypeScript</div>
-                        <div class="skill-item">Python</div>
-                        <div class="skill-item">C#</div>
-                        <div class="skill-item">Java</div>
-                        <div class="skill-item">C++</div>
-                        <div class="skill-item">SQL</div>
-                        <div class="skill-item">HTML5</div>
-                        <div class="skill-item">CSS3</div>
-                        <div class="skill-item">Assembly</div>
-                    </div>
-                    
-                    <div class="skill-category">
-                        <h3>Frontend</h3>
-                        <div class="skill-item">React</div>
-                        <div class="skill-item">Vite</div>
-                        <div class="skill-item">TypeScript</div>
-                        <div class="skill-item">GraphQL</div>
-                        <div class="skill-item">Recharts</div>
-                        <div class="skill-item">Leaflet</div>
-                    </div>
-                    
-                    <div class="skill-category">
-                        <h3>Backend & APIs</h3>
-                        <div class="skill-item">Node.js</div>
-                        <div class="skill-item">FastAPI</div>
-                        <div class="skill-item">.NET</div>
-                        <div class="skill-item">REST APIs</div>
-                        <div class="skill-item">WebSocket</div>
-                        <div class="skill-item">API development</div>
-                    </div>
-
-                    <div class="skill-category">
-                        <h3>Databases & Cloud</h3>
-                        <div class="skill-item">PostgreSQL</div>
-                        <div class="skill-item">SQL Server</div>
-                        <div class="skill-item">Azure</div>
-                        <div class="skill-item">AWS</div>
-                        <div class="skill-item">Netlify</div>
-                        <div class="skill-item">Render</div>
-                    </div>
-
-                    <div class="skill-category">
-                        <h3>DevOps & Tools</h3>
-                        <div class="skill-item">Git</div>
-                        <div class="skill-item">Docker</div>
-                        <div class="skill-item">Azure DevOps</div>
-                        <div class="skill-item">CI/CD</div>
-                        <div class="skill-item">Auth0</div>
-                        <div class="skill-item">Agile</div>
-                        <div class="skill-item">Scrum</div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Projects section -->
-            <section id="projects" class="section">
-                <h2 class="section-header">Projects</h2>
-                <div class="projects-grid">
-                    <div class="project-card">
-                        <h3 class="project-title">HomeNode [PickHacks 26 Winner]</h3>
-                        <p class="project-description">
-                            Built a mobile-first smart energy arbitrage platform combining household battery insights, local weather, and grid-intensity signals to convert homes into nano data centers.
-                            Developed AI-assisted job scheduling with a secure FastAPI backend (server-side API keys, fallback logic) and deployed a production stack on Netlify and Render.
-                            Implemented modular data hooks and personalized controls (location, units, battery profile, automation) for real-time dashboards tracking energy impact and revenue.
-                        </p>
-                        <div class="project-tech">
-                            <span class="tech-tag">React</span>
-                            <span class="tech-tag">Vite</span>
-                            <span class="tech-tag">FastAPI</span>
-                            <span class="tech-tag">Python</span>
-                            <span class="tech-tag">Auth0</span>
-                            <span class="tech-tag">Leaflet</span>
-                        </div>
-                        <p class="project-description" style="margin-top: 12px; color: var(--text-dim); font-size: 14px;">
-                            Live: <a href="https://homenode.netlify.app/" target="_blank">homenode.netlify.app</a> |
-                            Repo: <a href="https://github.com/Harsh-Aaryan/EcoAI" target="_blank">github.com/Harsh-Aaryan/EcoAI</a>
-                        </p>
-                    </div>
-
-                    <div class="project-card">
-                        <h3 class="project-title">AutoTrader</h3>
-                        <p class="project-description">
-                            Developed an automated stock trading bot with real-time trading, position monitoring, and loop offset strategies.
-                            Integrated a Telegram bot with encrypted messaging and a remote kill switch.
-                            Implemented multi-threading for concurrent market data processing via WebSocket, Monte Carlo backtesting, and AWS Secrets Manager for secure API key management.
-                        </p>
-                        <div class="project-tech">
-                            <span class="tech-tag">Python</span>
-                            <span class="tech-tag">Alpaca API</span>
-                            <span class="tech-tag">Telegram Bot</span>
-                            <span class="tech-tag">Docker</span>
-                            <span class="tech-tag">AWS</span>
-                        </div>
-                    </div>
-
-                    <div class="project-card">
-                        <h3 class="project-title">Canvas-RPG [2nd Place, PickHacks 25]</h3>
-                        <p class="project-description">
-                            Built a Chrome extension and Progressive Web App converting Canvas LMS into an RPG-styled game using the Canvas API for personalized quests.
-                            Achieved 700+ downloads on the Chrome Web Store.
-                        </p>
-                        <div class="project-tech">
-                            <span class="tech-tag">React</span>
-                            <span class="tech-tag">Python</span>
-                            <span class="tech-tag">JavaScript</span>
-                            <span class="tech-tag">GraphQL</span>
-                            <span class="tech-tag">Canvas API</span>
-                            <span class="tech-tag">Chrome Extension</span>
-                        </div>
-                        <p class="project-description" style="margin-top: 12px; color: var(--text-dim); font-size: 14px;">
-                            Repo: <a href="https://github.com/Harsh-Aaryan/canvas-rpg" target="_blank">github.com/Harsh-Aaryan/canvas-rpg</a>
-                        </p>
-                    </div>
-
-                    <div class="project-card">
-                        <h3 class="project-title">AI-Music Discord Bot</h3>
-                        <p class="project-description">
-                            Created an AI-powered Discord bot for generating music using Suno LLM. Integrated Suno's sound generation API, deploying it on Vercel due to limited API availability. Utilized Postman for API testing and debugging, ensuring seamless communication between the bot and the sound generation service.
-                        </p>
-                        <div class="project-tech">
-                            <span class="tech-tag">Python</span>
-                            <span class="tech-tag">REST API</span>
-                            <span class="tech-tag">Vercel</span>
-                            <span class="tech-tag">Postman</span>
-                        </div>
-                    </div>
-
-                    <div class="project-card">
-                        <h3 class="project-title">Smart Cart</h3>
-                        <p class="project-description">
-                            Designed and implemented a fully functional Smart Cart store checkout system with integrated front-end and back-end components. Made use of PostgreSQL database for product management; a C++ backend optimized for performance and memory; and an HTML, CSS, and JavaScript front-end enabling user checkout, payment, and order processing.
-                        </p>
-                        <div class="project-tech">
-                            <span class="tech-tag">C++</span>
-                            <span class="tech-tag">PostgreSQL</span>
-                            <span class="tech-tag">HTML/CSS</span>
-                            <span class="tech-tag">JavaScript</span>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Contact section -->
-            <section id="contact" class="section">
-                <h2 class="section-header">Contact</h2>
-                <div class="contact-grid">
-                    <div class="contact-info">
-                        <a href="mailto:harsharyan4@gmail.com" class="contact-item">
-                            <span class="contact-icon">📧</span>
-                            <div>
-                                <div>Email</div>
-                                <div style="color: var(--text-dim); font-size: 14px;">harsharyan4@gmail.com</div>
-                            </div>
-                        </a>
-                        
-                        <a href="https://github.com/Harsh-Aaryan" class="contact-item">
-                            <span class="contact-icon">🐙</span>
-                            <div>
-                                <div>GitHub</div>
-                                <div style="color: var(--text-dim); font-size: 14px;">@Harsh-Aaryan</div>
-                            </div>
-                        </a>
-                        
-                        <a href="https://harshaaryan.tech" target="_blank" class="contact-item">
-                            <span class="contact-icon">🌐</span>
-                            <div>
-                                <div>Website</div>
-                                <div style="color: var(--text-dim); font-size: 14px;">harshaaryan.tech</div>
-                            </div>
-                        </a>
-
-                        <a href="Harsh_Aaryan_Resume.pdf" target="_blank" class="contact-item">
-                            <span class="contact-icon">📄</span>
-                            <div>
-                                <div>Resume (PDF)</div>
-                                <div style="color: var(--text-dim); font-size: 14px;">Harsh_Aaryan_Resume.pdf</div>
-                            </div>
-                        </a>
-                    </div>
-                    
-                    <!-- Terminal-style contact info -->
-                    <div class="terminal-output">
-                        <div class="output-line">
-                            <span class="output-prompt">$</span>
-                            <span class="output-command">cat contact.txt</span>
-                        </div>
-                        <div class="output-line">
-                            <span class="output-result">Let's build something amazing together!</span>
-                        </div>
-                        <div class="output-line">
-                            <span class="output-result"></span>
-                        </div>
-                        <div class="output-line">
-                            <span class="output-result">I'm always open to:</span>
-                        </div>
-                        <div class="output-line">
-                            <span class="output-result">• Software Engineering Opportunities</span>
-                        </div>
-                        <div class="output-line">
-                            <span class="output-result">• Full-stack Development Projects</span>
-                        </div>
-                        <div class="output-line">
-                            <span class="output-result">• Open Source Contributions</span>
-                        </div>
-                        <div class="output-line">
-                            <span class="output-result">• Tech Discussions</span>
-                        </div>
-                        <div class="output-line">
-                            <span class="output-prompt">$</span>
-                            <span class="cursor"></span>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </div>
+  <div id="root">
+    <div class="boot-loader" aria-live="polite">
+      <div>BOOTING HARSH.OS...</div>
+      <div class="boot-loader-bar"><i></i></div>
     </div>
-
-    <!-- JavaScript file -->
-    <script src="scripts.js"></script>
+  </div>
+  <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>
