@@ -388,17 +388,17 @@ function Scene({ zoomRef, bootRunning, reducedMotion, onBootReady, onGlassRect, 
   return (
     <>
       <color attach="background" args={['#07090c']} />
-      <hemisphereLight args={['#6a7580', '#1a100c', 1.17]} />
-      <ambientLight intensity={0.55} color="#8a7a64" />
-      <directionalLight position={[0.15, 1.05, 1.55]} intensity={1.5} color="#f3d7a8" />
-      <directionalLight position={[-0.8, 0.7, 0.4]} intensity={0.36} color="#7f93a3" />
+      <hemisphereLight args={['#7a8590', '#1a100c', 1.4]} />
+      <ambientLight intensity={0.66} color="#8a7a64" />
+      <directionalLight position={[0.15, 1.05, 1.55]} intensity={1.8} color="#f3d7a8" />
+      <directionalLight position={[-0.8, 0.7, 0.4]} intensity={0.43} color="#7f93a3" />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0.12]}>
         <planeGeometry args={[2.6, 1.7]} />
-        <meshBasicMaterial color="#4a2e1c" />
+        <meshBasicMaterial color="#5a3820" />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0.14]}>
         <circleGeometry args={[0.42, 20]} />
-        <meshBasicMaterial color="#000000" transparent opacity={0.45} />
+        <meshBasicMaterial color="#000000" transparent opacity={0.6} />
       </mesh>
       <VintageCRT
         bootMap={bootMap}

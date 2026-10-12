@@ -70,6 +70,13 @@ function fullBezelBox() {
   }
 }
 
+function fadeLiteCanvas(amount) {
+  const canvas = document.querySelector('.scene-canvas.is-lite')
+  if (!canvas) return
+  canvas.style.transition = 'none'
+  canvas.style.opacity = String(Math.max(0, Math.min(1, 1 - amount)))
+}
+
 function applyFullBezel(el) {
   el.style.left = ''
   el.style.top = ''
@@ -78,42 +85,53 @@ function applyFullBezel(el) {
   el.style.clipPath = 'none'
   el.style.opacity = '1'
   el.style.borderRadius = ''
+  el.style.borderWidth = ''
+  el.style.borderStyle = ''
+  el.style.borderColor = ''
+  el.style.boxSizing = ''
   el.classList.remove('is-wiping', 'is-expanding')
   el.classList.add('is-full')
+  fadeLiteCanvas(1)
 }
 
 function applyOverlayRect(el, rect, zoom, expand = false) {
   if (!el) return
-  if (expand && (zoom >= 0.995 || !rect)) {
+  const expandT = expand ? smoothstep((zoom - 0.85) / 0.15) : 0
+  fadeLiteCanvas(expand ? expandT : 0)
+  if (expand && zoom >= 0.995) {
     applyFullBezel(el)
     return
   }
   if (!rect) return
   const glass = glassBox(rect)
-  const expandT = expand ? smoothstep((zoom - 0.84) / 0.16) : 0
+  const dest = fullBezelBox()
   const box =
     expandT > 0
       ? {
-          left: lerpNum(glass.left, fullBezelBox().left, expandT),
-          top: lerpNum(glass.top, fullBezelBox().top, expandT),
-          width: lerpNum(glass.width, fullBezelBox().width, expandT),
-          height: lerpNum(glass.height, fullBezelBox().height, expandT),
+          left: lerpNum(glass.left, dest.left, expandT),
+          top: lerpNum(glass.top, dest.top, expandT),
+          width: lerpNum(glass.width, dest.width, expandT),
+          height: lerpNum(glass.height, dest.height, expandT),
         }
       : glass
-  const wipe = expand ? Math.max(expandT, smoothstep((zoom - 0.84) / 0.08)) : smoothstep((zoom - 0.9) / 0.1)
+  const wipe = expand ? Math.max(expandT, smoothstep((zoom - 0.85) / 0.06)) : smoothstep((zoom - 0.9) / 0.1)
+  el.style.boxSizing = 'border-box'
   el.style.left = `${box.left}px`
   el.style.top = `${box.top}px`
   el.style.width = `${box.width}px`
   el.style.height = `${box.height}px`
-  const rad = Math.max(6, Math.min(box.width, box.height) * (expandT > 0.4 ? 0.02 : 0.026))
+  const rad = lerpNum(Math.max(6, Math.min(box.width, box.height) * 0.026), 8, expandT)
   el.style.borderRadius = `${rad.toFixed(1)}px`
+  el.style.borderStyle = expand ? 'solid' : ''
+  el.style.borderColor = expand ? '#c4b08a' : ''
+  el.style.borderWidth = expand ? `${(expandT * 10).toFixed(2)}px` : ''
   const hidden = (1 - wipe) * 100
-  el.style.clipPath = wipe >= 0.995 || expandT > 0.02 ? 'none' : `inset(0 0 ${hidden.toFixed(2)}% 0)`
+  el.style.clipPath = wipe >= 0.995 || expandT > 0.04 ? 'none' : `inset(0 0 ${hidden.toFixed(2)}% 0)`
   el.style.opacity = wipe > 0.02 || expandT > 0 ? '1' : '0'
   el.classList.toggle('is-framed', expandT < 0.995)
-  el.classList.toggle('is-wiping', wipe > 0.02 && wipe < 0.995 && expandT < 0.2)
-  el.classList.toggle('is-expanding', expand && expandT > 0.2 && expandT < 0.995)
-  el.classList.toggle('is-full', expand && expandT >= 0.995)
+  el.classList.toggle('is-wiping', !expand && wipe > 0.02 && wipe < 0.995)
+  el.classList.toggle('is-expanding', expand && expandT > 0 && expandT < 0.995)
+  el.classList.toggle('is-full', false)
 }
 
 function zoomDuration(dir, fromStage, use3d, reduced, lite) {
@@ -325,7 +343,7 @@ export default function App() {
       }
       return
     }
-    const appearAt = liteRef.current ? 0.84 : 0.9
+    const appearAt = liteRef.current ? 0.85 : 0.9
     if (motion.dir === 'os' && zoomRef.current >= appearAt && !overlayOnRef.current) {
       overlayOnRef.current = true
       setOsMounted(true)
@@ -352,6 +370,7 @@ export default function App() {
         publishDebug()
         setOverlayOn(false)
         setOsMounted(true)
+        fadeLiteCanvas(0)
         window.setTimeout(() => parkedRef.current?.focus(), 40)
         judgeFpsSamples()
         return

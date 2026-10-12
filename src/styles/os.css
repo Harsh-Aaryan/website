@@ -26,6 +26,10 @@
   opacity: 1;
 }
 
+.scene-canvas.is-lite.is-ready {
+  transition: none;
+}
+
 .scene-canvas.is-lite::before,
 .scene-canvas.is-lite::after {
   content: '';
@@ -296,14 +300,13 @@
   border-radius: 0;
 }
 
+.screen-overlay.is-expanding {
+  box-shadow:
+    inset 0 0 0 2px #8a7354,
+    0 0 18px rgba(255, 176, 0, 0.16);
+}
+
 @media (max-width: 768px) {
-  .screen-overlay.is-expanding {
-    border: 10px solid #c4b08a;
-    border-radius: 8px;
-    box-shadow:
-      inset 0 0 0 2px #8a7354,
-      0 0 18px rgba(255, 176, 0, 0.16);
-  }
   .screen-overlay.is-full {
     inset: 10px;
     width: auto;
