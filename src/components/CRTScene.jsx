@@ -1,5 +1,6 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import {
+  ContactShadows,
   Environment,
   useGLTF,
   useProgress,
@@ -615,7 +616,68 @@ function SafeComposer({ enableDof }) {
   )
 }
 
-function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady, onGlassRect }) {
+function canvasDpr() {
+  try {
+    return window.matchMedia('(pointer: coarse)').matches ? [1, 1] : [1, 1.5]
+  } catch {
+    return [1, 1.5]
+  }
+}
+
+function OnceContactShadows() {
+  const { gl } = useThree()
+  const group = useRef(null)
+
+  useEffect(() => {
+    return () => {
+      const root = group.current
+      if (!root) return
+      root.traverse((obj) => {
+        const mats = obj.material ? (Array.isArray(obj.material) ? obj.material : [obj.material]) : []
+        mats.forEach((mat) => {
+          try {
+            mat.map?.dispose?.()
+          } catch {
+            /* ignore */
+          }
+          try {
+            mat.dispose?.()
+          } catch {
+            /* ignore */
+          }
+        })
+        try {
+          obj.geometry?.dispose?.()
+        } catch {
+          /* ignore */
+        }
+      })
+    }
+  }, [gl])
+
+  let lost = false
+  try {
+    lost = Boolean(gl?.getContext?.()?.isContextLost?.())
+  } catch {
+    lost = true
+  }
+  if (lost) return null
+
+  return (
+    <group ref={group}>
+      <ContactShadows
+        frames={1}
+        position={[0, 0.001, 0.16]}
+        opacity={0.6}
+        scale={1.6}
+        blur={2.4}
+        far={0.4}
+      />
+    </group>
+  )
+}
+
+function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady, onGlassRect, suspended }) {
   const glassCenterRef = useRef(GLASS_LOOK)
   const glassSizeRef = useRef(glassWorldSize())
   const bootMap = useBootTexture({
@@ -664,6 +726,7 @@ function Scene({ zoomRef, bootRunning, reducedMotion, enableDof, onBootReady, on
         glassCenterRef={glassCenterRef}
         glassSizeRef={glassSizeRef}
       />
+      {!suspended && <OnceContactShadows />}
       <Dust />
       <CameraRig zoomRef={zoomRef} glassCenterRef={glassCenterRef} glassSizeRef={glassSizeRef} />
       <ShaderWarmup
@@ -690,14 +753,15 @@ export default function CRTScene({
   onContextLost,
   suspended,
 }) {
+  const [dpr] = useState(canvasDpr)
   return (
     <div className={`scene-layer scene-canvas ${revealed ? 'is-ready' : ''}`}>
       <Canvas
         frameloop={suspended ? 'never' : 'always'}
-        dpr={[1, 1]}
+        dpr={dpr}
         shadows={false}
         gl={{
-          antialias: false,
+          antialias: true,
           alpha: false,
           powerPreference: 'high-performance',
           toneMapping: THREE.ACESFilmicToneMapping,
@@ -731,6 +795,7 @@ export default function CRTScene({
           enableDof={enableDof}
           onBootReady={onBootReady}
           onGlassRect={onGlassRect}
+          suspended={suspended}
         />
       </Canvas>
     </div>

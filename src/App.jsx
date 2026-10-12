@@ -715,12 +715,13 @@ export default function App() {
         <button
           type="button"
           className="scene-recover"
+          aria-label="Press any key to return to HARSH.OS"
           onPointerDown={(event) => {
             event.preventDefault()
             startZoom()
           }}
         >
-          PRESS ANY KEY
+          <span className="visually-hidden">Press any key to return to HARSH.OS</span>
         </button>
       )}
 
