@@ -195,7 +195,7 @@ export default function App() {
     const sorted = times.slice().sort((a, b) => a - b)
     const p75 = sorted[Math.floor((sorted.length - 1) * 0.75)]
     const slow = times.filter((dt) => dt > 50).length
-    if (p75 > 50 && slow / times.length >= 0.4) fpsBad.current += 1
+    if (p75 > 58 && slow / times.length >= 0.5) fpsBad.current += 1
     else fpsBad.current = 0
     window.__crtFpsJudge = { p75, count: times.length, slow, bad: fpsBad.current }
   }
