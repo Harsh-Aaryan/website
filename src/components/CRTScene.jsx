@@ -402,6 +402,7 @@ function VintageCRT({ bootMap, onGlassRect, zoomRef, glassCenterRef, glassSizeRe
         {lite ? (
           <meshBasicMaterial
             map={bootMap}
+            color="#ffb000"
             toneMapped={false}
             polygonOffset
             polygonOffsetFactor={-1}

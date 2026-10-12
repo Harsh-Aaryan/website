@@ -47,6 +47,7 @@
 
 .scene-canvas.is-lite::after {
   background:
+    linear-gradient(transparent 60%, #07090c 95%),
     repeating-linear-gradient(
       0deg,
       transparent 0 2px,

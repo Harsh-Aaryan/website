@@ -928,14 +928,13 @@ export default function App() {
         <button
           type="button"
           className="scene-recover"
-          aria-label="Press any key to return to HARSH.OS"
+          aria-hidden="true"
+          tabIndex={-1}
           onPointerDown={(event) => {
             event.preventDefault()
             startZoom()
           }}
-        >
-          <span className="visually-hidden">Press any key to return to HARSH.OS</span>
-        </button>
+        />
       )}
 
       {stage === 'parked' && (

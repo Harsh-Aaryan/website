@@ -29,7 +29,7 @@ function startCamForAspect(aspect, look = START_CAM.look, glassSize) {
   const dist = tvW / (2 * tanHalf * safe * PHONE_TV_FILL)
   return {
     pos: [look[0], look[1] + 0.26, look[2] + dist],
-    look: [look[0], look[1] - 0.2, look[2] + 0.04],
+    look: [look[0], look[1] - 0.26, look[2] + 0.04],
     fov,
   }
 }
@@ -292,6 +292,7 @@ function VintageCRT({ bootMap, onGlassRect, zoomRef, glassCenterRef, glassSizeRe
       <mesh geometry={tubeGeo} position={screen.position} renderOrder={2}>
         <meshBasicMaterial
           map={bootMap}
+          color="#ffb000"
           toneMapped={false}
           polygonOffset
           polygonOffsetFactor={-1}
