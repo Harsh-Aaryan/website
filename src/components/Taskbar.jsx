@@ -68,6 +68,7 @@ export default function Taskbar({
   const onWrapBlur = (e) => {
     if (!menuOpen) return
     const next = e.relatedTarget
+    // iOS Safari leaves relatedTarget null on tap, so don't treat that as focus leaving the menu.
     if (!next || e.currentTarget.contains(next)) return
     onCloseMenu()
   }
