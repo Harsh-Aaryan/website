@@ -20,6 +20,7 @@ export default function Taskbar({
 }) {
   const itemRefs = useRef([])
   const startRef = useRef(null)
+  const wrapRef = useRef(null)
 
   const setStartRef = (el) => {
     startRef.current = el
@@ -57,15 +58,23 @@ export default function Taskbar({
     }
   }
 
-  const onWrapBlur = (event) => {
+  useEffect(() => {
     if (!menuOpen) return
-    if (event.currentTarget.contains(event.relatedTarget)) return
+    const onDown = (e) => { if (!wrapRef.current?.contains(e.target)) onCloseMenu() }
+    document.addEventListener('pointerdown', onDown, true)
+    return () => document.removeEventListener('pointerdown', onDown, true)
+  }, [menuOpen, onCloseMenu])
+
+  const onWrapBlur = (e) => {
+    if (!menuOpen) return
+    const next = e.relatedTarget
+    if (!next || e.currentTarget.contains(next)) return
     onCloseMenu()
   }
 
   return (
     <footer className="taskbar">
-      <div className="start-wrap" onBlur={onWrapBlur}>
+      <div className="start-wrap" ref={wrapRef} onBlur={onWrapBlur}>
         <button
           ref={setStartRef}
           type="button"
